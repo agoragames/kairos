@@ -1,0 +1,5 @@
+0.0.1
+=====
+
+Initial release, supports simple time series of step in seconds, 
+max number of steps, casting of results

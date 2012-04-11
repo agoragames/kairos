@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+
+import sys, os
+sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
+
+from kairos import Timeseries
+import redis
+import random
+import time
+#import gevent
+
+client = redis.Redis('localhost', 6379)
+t = Timeseries(client, {
+  '5second': {
+    'step': 5,      # 5 seconds
+    'steps' : 360,  # last half hour
+    'read_cast' : float,
+  },
+  'minute':{
+    'step':60,      # 60 seconds
+    'steps':120,    # last 2 hours
+    'read_cast' : float,
+  }
+})
+
+print 'Inserting for 5 minutes' # more or less
+for second in range(5*60):
+  num_per_sec = 5000
+  sleep = 1/num_per_sec
+  for _something in range(num_per_sec):
+    t.insert('integration', random.random())
+    time.sleep( sleep )
+
+print 'last 5 seconds'
+series = t.get('integration', '5second')
+print type(series[0])
+print '  count', len(series)
+print '  min  ', min(series)
+print '  max  ', max(series)
+print '  avg  ', (sum(series) / len(series))
+
+print 'last minute'
+series = t.get('integration', 'minute')
+print type(series[0])
+print '  count', len(series)
+print '  min  ', min(series)
+print '  max  ', max(series)
+print '  avg  ', (sum(series) / len(series))

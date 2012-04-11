@@ -1,0 +1,10 @@
+# Development requirements
+
+-r requirements.pip
+
+# Required redis 
+redis==2.4.11
+hiredis==0.1.0
+
+# mocking framework
+chai==0.1.21
