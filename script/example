@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+from kairos import Timeseries
+import redis
+
+# Change these constants to see the differences. When toggling the
+# count flag, you'll have to reset the redis database if there is
+# already data for the same time window
+COUNT_ONLY = False
+CONDENSED = False
+
+client = redis.Redis('localhost', 6379)
+t = Timeseries(client, {
+  'minute':{
+    'step':60,            # 60 seconds
+    'steps':10,           # last 10 minutes
+    'read_cast' : float,  # cast all results as floats
+    'resolution': 10,     # 10 second resolution
+    'count_only': COUNT_ONLY
+  }
+})
+
+t.insert('example', 3.14159)
+t.insert('example', 2.71828)
+
+print 'get last minute'
+print t.get('example', 'minute', condensed=CONDENSED)
+
+print '\ncount last minute'
+print t.count('example', 'minute', condensed=CONDENSED)
+
+print '\nlast 4 minutes'
+for interval,series in t.series('example', 'minute', 4, condensed=CONDENSED).iteritems():
+  print interval
+  if CONDENSED:
+    print '  ', series
+    continue
+  for resolution,data in series.iteritems():
+    print '  ',resolution, data
