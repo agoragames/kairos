@@ -2,7 +2,7 @@
 Kairos - Time series data storage in Redis
 ==========================================
 
-:Version: 0.0.1
+:Version: 0.0.2
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, time, rrd, gevent
@@ -19,6 +19,8 @@ Kairos provides time series storage using a Redis backend. Kairos is intended
 to replace RRD in situations where the scale of Redis is required, with as
 few dependencies on other packages as possible. It should work with 
 `gevent <http://www.gevent.org/>`_ out of the box.
+
+Requires python 2.7 or later.
 
 Usage
 =====
@@ -39,7 +41,11 @@ Install `redis <http://pypi.python.org/pypi/redis>`_ and kairos. ::
 
   t.insert('example', 3.14159)
   t.insert('example', 2.71828)
-  print t.get('example', 'minute') # [3.1415899999999999, 2.71828]
+  print t.get('example', 'minute')
+
+Each retrieval function will by default return an ordered dictionary, though
+condensed results are also available. Run ``script/example`` to see standard
+output; ``watch -n 4 script/example`` is a useful tool as well.
 
 
 Installation
@@ -68,6 +74,7 @@ strongly recommended.
 Future
 ======
 
+* Tests!
 * Storage of objects
 * Histograms for compressing large intervals
 * Interfaces to support easy integration with Python statistics packages

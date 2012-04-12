@@ -22,7 +22,7 @@ setup(
     long_description=open('README.rst').read(),
     keywords=['python', 'redis', 'time series', 'statistics'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
         "Intended Audience :: Developers",
         "Operating System :: POSIX",
@@ -30,6 +30,8 @@ setup(
         "Topic :: System :: Distributed Computing",
         "Topic :: Software Development :: Libraries :: Python Modules",
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries'
     ]
 )

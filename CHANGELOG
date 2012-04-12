@@ -1,3 +1,19 @@
+0.0.2
+=====
+
+Added Timeseries.series() for fetching multiple steps at a time
+
+Added Timeseries.count() for fetching the number of values in an interval
+
+Use redis pipelines where possible
+
+Added ability to track only counts rather than raw values
+
+Added concept of resolution within an interval
+
+Switch to OrderedDict for all results
+
+
 0.0.1
 =====
 
