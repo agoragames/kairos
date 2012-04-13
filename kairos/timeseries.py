@@ -240,33 +240,48 @@ class Timeseries(object):
       interval_bucket = start_bucket + s
       interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
       rval[interval_bucket*step] = OrderedDict()
-      pipe.smembers(interval_key)
+
+      if step==resolution:
+        if config.get('count_only',False):
+          pip.get(interval_key)
+        else:
+          pipe.lrange(interval_key, 0, -1)
+      else:
+        pipe.smembers(interval_key)
     res = pipe.execute()
 
     # TODO: a memory efficient way to use a single pipeline for this.
     for idx,data in enumerate(res):
       # Create a pipe and go fetch all the data for each.
       pipe = self._client.pipeline()
-      resolution_buckets = sorted(map(int,data))
       interval_bucket = start_bucket + idx
       interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
 
-      for bucket in resolution_buckets:
-        resolution_key = '%s:%s'%(interval_key, bucket)
-        
-        if config.get('count_only',False):
-          pipe.get(resolution_key)
-        else:
-          pipe.lrange(resolution_key, 0, -1)
-      
-      resolution_res = pipe.execute()
-      for x,data in enumerate(resolution_res):
+      if step==resolution:
         if config.get('count_only',False):
           data = int(data) if data else 0
         elif config.get('read_cast'):
           data = map(config.get('read_cast'), data)
+        rval[interval_bucket*step] = data
+
+      else:
+        resolution_buckets = sorted(map(int,data))
+        for bucket in resolution_buckets:
+          resolution_key = '%s:%s'%(interval_key, bucket)
+          
+          if config.get('count_only',False):
+            pipe.get(resolution_key)
+          else:
+            pipe.lrange(resolution_key, 0, -1)
         
-        rval[interval_bucket*step][ resolution_buckets[x]*resolution ] = data
+        resolution_res = pipe.execute()
+        for x,data in enumerate(resolution_res):
+          if config.get('count_only',False):
+            data = int(data) if data else 0
+          elif config.get('read_cast'):
+            data = map(config.get('read_cast'), data)
+          
+          rval[interval_bucket*step][ resolution_buckets[x]*resolution ] = data
 
     # If condensed, collapse each interval into a single value
     if condensed:

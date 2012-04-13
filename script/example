@@ -12,14 +12,16 @@ import redis
 # already data for the same time window
 COUNT_ONLY = False
 CONDENSED = False
+STEP = 60
+RESOLUTION = 10
 
 client = redis.Redis('localhost', 6379)
 t = Timeseries(client, {
   'minute':{
-    'step':60,            # 60 seconds
+    'step':STEP,
     'steps':10,           # last 10 minutes
     'read_cast' : float,  # cast all results as floats
-    'resolution': 10,     # 10 second resolution
+    'resolution': RESOLUTION,
     'count_only': COUNT_ONLY
   }
 })
@@ -39,5 +41,9 @@ for interval,series in t.series('example', 'minute', 4, condensed=CONDENSED).ite
   if CONDENSED:
     print '  ', series
     continue
-  for resolution,data in series.iteritems():
-    print '  ',resolution, data
+
+  if STEP==RESOLUTION:
+    print '  ',series
+  else:
+    for resolution,data in series.iteritems():
+      print '  ',resolution, data
