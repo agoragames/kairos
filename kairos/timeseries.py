@@ -12,9 +12,11 @@ class Timeseries(object):
   A time series object provides the interface to manage data sets in redis
   '''
 
-  def __init__(self, client, config):
+  def __init__(self, client, config, key_prefix=''):
     '''
-    Create a time series using a given redis client and configuration.
+    Create a time series using a given redis client and configuration. 
+    Optionally provide a prefix for all keys. If prefix length>0 and it
+    doesn't end with ":", it will be automatically appended.
 
     The redis client must be API compatible with the Redis instance from
     the redis package http://pypi.python.org/pypi/redis
@@ -54,6 +56,9 @@ class Timeseries(object):
     '''
     self._client = client
     self._config = config
+    self._prefix = key_prefix
+    if len(self._prefix) and not self._prefix.endswith(':'):
+      self._prefix += ':'
 
   def insert(self, name, value, timestamp=None):
     '''
@@ -82,7 +87,7 @@ class Timeseries(object):
       interval_bucket = int( timestamp / step )
       resolution_bucket = int( timestamp / resolution )
 
-      interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
+      interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
       resolution_key = '%s:%s'%(interval_key, resolution_bucket)
       
       # If resolution is the same as step, store in the same row.
@@ -127,7 +132,7 @@ class Timeseries(object):
     resolution = config.get('resolution',step)
 
     interval_bucket = int( timestamp / step )
-    interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
+    interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
     rval = OrderedDict()    
     if resolution==step:
@@ -181,7 +186,7 @@ class Timeseries(object):
     resolution = config.get('resolution',step)
 
     interval_bucket = int( timestamp / step )
-    interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
+    interval_key = '%s%s:%s:%s'%(slf._prefix, name, interval, interval_bucket)
 
     rval = OrderedDict()    
     if resolution==step:
@@ -238,7 +243,7 @@ class Timeseries(object):
     rval = OrderedDict()
     for s in range(steps):
       interval_bucket = start_bucket + s
-      interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
+      interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
       rval[interval_bucket*step] = OrderedDict()
 
       if step==resolution:
@@ -255,7 +260,7 @@ class Timeseries(object):
       # Create a pipe and go fetch all the data for each.
       pipe = self._client.pipeline()
       interval_bucket = start_bucket + idx
-      interval_key = '%s:%s:%s'%(name, interval, interval_bucket)
+      interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
       if step==resolution:
         if config.get('count_only',False):
