@@ -1,3 +1,12 @@
+0.0.6
+=====
+
+Added optional compression on a series which will count unique hits on a
+value within an interval. Exact time resolution is traded in favor of
+a (possible) significant reduction in storage requirements. The resolution
+of the compression is up to the user in how they cast the data on insert.
+
+
 0.0.5
 =====
 

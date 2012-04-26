@@ -94,13 +94,19 @@ class Timeseries(object):
       if resolution==step:
         if config.get('count_only',False):
           pipe.incr(interval_key)
+        elif config.get('compress', False):
+          pipe.hincrby(interval_key, value, 1)
         else:
           pipe.rpush(interval_key, value)
       else:
+        # Add the resolution bucket to the interval
         pipe.sadd(interval_key, resolution_bucket)
 
+        # Figure out what we're storing.
         if config.get('count_only',False):
           pipe.incr(resolution_key)
+        elif config.get('compress', False):
+          pipe.hincrby(resolution_key, value, 1)
         else:
           pipe.rpush(resolution_key, value)
 
@@ -138,6 +144,13 @@ class Timeseries(object):
     if resolution==step:
       if config.get('count_only',False):
         data = int( self._client.get(interval_key) )
+      elif config.get('compress', False):
+        data = self._client.hgetall(interval_key)
+        # Turn back into a time series
+        # TODO: this might be too slow because of the addition
+        data = reduce(lambda res, (key,val): res + int(val)*[key], data.iteritems(), [] )
+        if config.get('read_cast'):
+          data = map(config.get('read_cast'), data)
       else:
         data = self._client.lrange(interval_key, 0, -1)
         if config.get('read_cast'):
@@ -154,6 +167,8 @@ class Timeseries(object):
         
         if config.get('count_only',False):
           pipe.get(resolution_key)
+        elif config.get('compress', False):
+          pipe.hgetall(resolution_key)
         else:
           pipe.lrange(resolution_key, 0, -1)
       
@@ -161,6 +176,12 @@ class Timeseries(object):
       for idx,data in enumerate(res):
         if config.get('count_only',False):
           data = int(data) if data else 0
+        elif config.get('compress', False):
+          # Turn back into a time series
+          # TODO: this might be too slow because of the addition
+          data = reduce(lambda res, (key,val): res + int(val)*[key], data.iteritems(), [] )
+          if config.get('read_cast'):
+            data = map(config.get('read_cast'), data)
         elif config.get('read_cast'):
           data = map(config.get('read_cast'), data)
         
@@ -186,12 +207,14 @@ class Timeseries(object):
     resolution = config.get('resolution',step)
 
     interval_bucket = int( timestamp / step )
-    interval_key = '%s%s:%s:%s'%(slf._prefix, name, interval, interval_bucket)
+    interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
     rval = OrderedDict()    
     if resolution==step:
       if config.get('count_only',False):
         data = int( self._client.get(interval_key) )
+      elif config.get('compress', False):
+        data = sum( map(int, self._client.hvals(interval_key)) )
       else:
         data = int( self._client.llen(interval_key) )
       rval[ interval_bucket*step ] = data
@@ -206,12 +229,17 @@ class Timeseries(object):
         
         if config.get('count_only',False):
           pipe.get(resolution_key)
+        elif config.get('compress', False):
+          pipe.hvals(resolution_key)
         else:
           pipe.llen(resolution_key)
       
       res = pipe.execute()
       for idx,data in enumerate(res):
-        rval[ resolution_buckets[idx]*resolution ] = int(data) if data else 0
+        if config.get('compress', False):
+          rval[ resolution_buckets[idx]*resolution ] = sum(map(int,data)) if data else 0
+        else:
+          rval[ resolution_buckets[idx]*resolution ] = int(data) if data else 0
     
     # If condensed, collapse the result into a single sum
     if condensed:
@@ -248,7 +276,9 @@ class Timeseries(object):
 
       if step==resolution:
         if config.get('count_only',False):
-          pip.get(interval_key)
+          pipe.get(interval_key)
+        elif config.get('compress',False):
+          pipe.hgetall(interval_key)
         else:
           pipe.lrange(interval_key, 0, -1)
       else:
@@ -265,6 +295,12 @@ class Timeseries(object):
       if step==resolution:
         if config.get('count_only',False):
           data = int(data) if data else 0
+        elif config.get('compress',False):
+          # Turn back into a time series
+          # TODO: this might be too slow because of the addition
+          data = reduce(lambda res, (key,val): res + int(val)*[key], data.iteritems(), [] )
+          if config.get('read_cast'):
+            data = map(config.get('read_cast'), data)
         elif config.get('read_cast'):
           data = map(config.get('read_cast'), data)
         rval[interval_bucket*step] = data
@@ -276,6 +312,8 @@ class Timeseries(object):
           
           if config.get('count_only',False):
             pipe.get(resolution_key)
+          elif config.get('compress',False):
+            pipe.hgetall(resolution_key)
           else:
             pipe.lrange(resolution_key, 0, -1)
         
@@ -283,6 +321,12 @@ class Timeseries(object):
         for x,data in enumerate(resolution_res):
           if config.get('count_only',False):
             data = int(data) if data else 0
+          elif config.get('compress',False):
+            # Turn back into a time series
+            # TODO: this might be too slow because of the addition
+            data = reduce(lambda res, (key,val): res + int(val)*[key], data.iteritems(), [] )
+            if config.get('read_cast'):
+              data = map(config.get('read_cast'), data)
           elif config.get('read_cast'):
             data = map(config.get('read_cast'), data)
           

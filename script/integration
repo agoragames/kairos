@@ -21,28 +21,43 @@ t = Timeseries(client, {
     'step':60,      # 60 seconds
     'steps':120,    # last 2 hours
     'read_cast' : float,
+  },
+  'hour':{
+    'step':3600,      # 1 hour
+    'steps':48,       # last 2 days
+    'resoluton':60,   # 1 minute resolution
+    'compress':True,  # compress the data
+    'read_cast' : float,
   }
 })
 
+# Insert random numbers. To show compression working, cast the floats
+# to strings and trim to 1 decimal place
 print 'Inserting for 5 minutes' # more or less
-for second in range(5*60):
+for second in range(1*60):
   num_per_sec = 5000
   sleep = 1/num_per_sec
   for _something in range(num_per_sec):
-    t.insert('integration', random.random())
+    num = "%.1f"%(random.random())
+    t.insert('integration', num)
     time.sleep( sleep )
 
 print 'last 5 seconds'
-series = t.get('integration', '5second')
-print type(series[0])
+series = t.get('integration', '5second', condensed=True)
 print '  count', len(series)
 print '  min  ', min(series)
 print '  max  ', max(series)
 print '  avg  ', (sum(series) / len(series))
 
 print 'last minute'
-series = t.get('integration', 'minute')
-print type(series[0])
+series = t.get('integration', 'minute', condensed=True)
+print '  count', len(series)
+print '  min  ', min(series)
+print '  max  ', max(series)
+print '  avg  ', (sum(series) / len(series))
+
+print 'last hour'
+series = t.get('integration', 'hour', condensed=True)
 print '  count', len(series)
 print '  min  ', min(series)
 print '  max  ', max(series)
