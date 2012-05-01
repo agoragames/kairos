@@ -1,0 +1,2 @@
+-r development.pip
+-r requirements_py26.pip
