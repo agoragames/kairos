@@ -148,7 +148,7 @@ class Timeseries(object):
     rval = OrderedDict()    
     if resolution==step:
       if config.get('count_only',False):
-        data = int( self._client.get(interval_key) )
+        data = int( self._client.get(interval_key) or 0 )
       elif config.get('compress', False):
         data = self._client.hgetall(interval_key)
         # Turn back into a time series
@@ -217,7 +217,7 @@ class Timeseries(object):
     rval = OrderedDict()    
     if resolution==step:
       if config.get('count_only',False):
-        data = int( self._client.get(interval_key) )
+        data = int( self._client.get(interval_key) or 0 )
       elif config.get('compress', False):
         data = sum( map(int, self._client.hvals(interval_key)) )
       else:
