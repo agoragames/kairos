@@ -1,3 +1,9 @@
+0.0.7
+=====
+
+If tracking only counts and resolution=interval, handle an interval without data
+
+
 0.0.6
 =====
 
