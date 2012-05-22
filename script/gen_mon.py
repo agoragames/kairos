@@ -81,7 +81,7 @@ def monitor(interval_name):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Test something.')
-    parser.add_argument('op', metavar='op', default='generate', action="store", choices=['generate', 'monitor'])
+    parser.add_argument('op', metavar='op', help='If op=generate, generates random data.  If op=monitor, monitors generated data.', default='generate', action="store", choices=['generate', 'monitor'])
     parser.add_argument('-i', '--interval', metavar='interval', default='minute', action='store', choices=['minute', 'hour', 'daily'])
     opts = parser.parse_args()
     if opts.op == 'generate':
