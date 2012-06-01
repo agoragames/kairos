@@ -47,6 +47,17 @@ Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
 output; ``watch -n 4 script/example`` is a useful tool as well.
 
+Dragons!
+--------
+
+Kairos achieves its efficiency by using Redis' TTLs and data structures in 
+combination with a key naming scheme that generates consistent keys based on
+any timestamp relative to epoch. However, just like 
+`RRDtool <http://oss.oetiker.ch/rrdtool/>`_, changing any attribute of the
+timeseries means that new data will be stored differently than old data. For
+this reason it's best to completely delete all data in an old time series
+before creating or querying using a new configuration.
+
 
 Installation
 ============
