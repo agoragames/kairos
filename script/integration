@@ -25,7 +25,7 @@ t = Timeseries(client, {
   'hour':{
     'step':3600,      # 1 hour
     'steps':48,       # last 2 days
-    'resoluton':60,   # 1 minute resolution
+    'resolution':60,   # 1 minute resolution
     'compress':True,  # compress the data
     'read_cast' : float,
   }
