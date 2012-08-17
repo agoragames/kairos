@@ -94,7 +94,7 @@ class Timeseries(object):
     self._read_func = kwargs.get('read_func',None)
     self._write_func = kwargs.get('write_func',None)
     self._prefix = kwargs.get('prefix', '')
-    self._intervals = kwargs.get('intervals', '')
+    self._intervals = kwargs.get('intervals', {})
     if len(self._prefix) and not self._prefix.endswith(':'):
       self._prefix += ':'
 

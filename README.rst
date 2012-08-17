@@ -81,6 +81,13 @@ Note that kairos does not by default require the redis package, nor does
 it require `hiredis <http://pypi.python.org/pypi/hiredis>`_ though it is
 strongly recommended.
 
+Tests
+=====
+
+Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
+
+  $ nosetests
+
 
 Future
 ======
