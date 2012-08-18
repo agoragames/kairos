@@ -119,7 +119,7 @@ class Timeseries(object):
       config['expire'] = expire
       config['coarse'] = (resolution==step)
         
-  def _insert(self, name, func, args, timestamp=None):
+  def insert(self, name, value, timestamp=None):
     '''
     Insert a value for the timeseries "name". For each interval in the 
     configuration, will insert the value into a bucket for the interval
@@ -131,6 +131,8 @@ class Timeseries(object):
     '''
     if not timestamp:
       timestamp = time.time()
+    if self._write_func:
+      value = self._write_func(value)
 
     # TODO: document acceptable names
     # TODO: document what types values are supported
@@ -143,19 +145,22 @@ class Timeseries(object):
       i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
       
       if config['coarse']:
-        getattr(pipe,func)(i_key, *args)
+        #getattr(pipe,func)(i_key, *args)
+        self._insert(pipe, i_key, value)
       else:
         # Add the resolution bucket to the interval. This allows us to easily
         # discover the resolution intervals within the larger interval, and
         # if there is a cap on the number of steps, it will go out of scope
         # along with the rest of the data
         pipe.sadd(i_key, r_bucket)
-        getattr(pipe,func)(r_key, *args)
+        #getattr(pipe,func)(r_key, *args)
+        self._insert(pipe, r_key, value)
 
       expire = config['expire']
       if expire:
         pipe.expire(i_key, expire)
-        pipe.expire(r_key, expire)
+        if not config['coarse']:
+          pipe.expire(r_key, expire)
 
     pipe.execute()
 
@@ -308,16 +313,13 @@ class Series(Timeseries):
   Simple time series where all data is stored in a list for each interval.
   '''
 
-  def insert(self, name, value, timestamp=None):
+  def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
     '''
-    if self._write_func:
-      value = self._write_func(value)
-    self._insert( name, 'rpush', (value,), timestamp )
+    handle.rpush(key, value)
 
   def _get(self, handle, key):
-
     return handle.lrange(key, 0, -1)
 
   def _process_row(self, data):
@@ -340,13 +342,11 @@ class Histogram(Timeseries):
   and distribution of the data points within the histogram.
   '''
 
-  def insert(self, name, value, timestamp=None):
+  def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
     '''
-    if self._write_func:
-      value = self._write_func(value)
-    self._insert( name, 'hincrby', (value,1), timestamp )
+    handle.hincrby(key, value, 1)
 
   def _get(self, handle, key):
     return handle.hgetall(key)
@@ -374,13 +374,11 @@ class Count(Timeseries):
   '''
 
   # TODO: Let the count timeseries support positive and negative 
-  def insert(self, name, value, timestamp=None):
+  def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
     '''
-    if self._write_func:
-      value = self._write_func(value)
-    self._insert( name, 'incr', (), timestamp )
+    handle.incr(key)
   
   def _get(self, handle, key):
     return handle.get(key)
