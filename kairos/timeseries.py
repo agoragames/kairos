@@ -20,7 +20,7 @@ class Timeseries(object):
   
   def __new__(cls, *args, **kwargs):
     if cls==Timeseries:
-      ttype = kwargs.pop('type','series')
+      ttype = kwargs.pop('type', None)
       if ttype=='series':
         return Series.__new__(Series, *args, **kwargs)
       elif ttype=='histogram':
@@ -284,20 +284,26 @@ class Timeseries(object):
         rval[key] = self._condense( rval[key] )
     
     return rval
+
+  def _insert(self, handle, key, value):
+    '''
+    Subclasses must implement inserting a value for a key.
+    '''
+    raise NotImplementedError()
     
   def _get(self, handle, key):
     '''
     Subclasses must implement fetching from a key. Should return the result
     of the call event if handle is a pipeline.
     '''
-    raise NotImplemented()
+    raise NotImplementedError()
 
   def _process_row(self, data):
     '''
     Subclasses should apply any read function to the data. Will only be called
     if there is one.
     '''
-    raise NotImplemented()
+    raise NotImplementedError()
 
   def _condense(self, data):
     '''
@@ -305,7 +311,7 @@ class Timeseries(object):
     object/value which will be mapped back to a timestamp that covers all
     of the data.
     '''
-    raise NotImplemented()
+    raise NotImplementedError()
 
 
 class Series(Timeseries):
