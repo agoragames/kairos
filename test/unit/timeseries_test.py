@@ -7,6 +7,7 @@ import time
 from chai import Chai
 
 from kairos.timeseries import *
+from kairos.exceptions import *
 
 # HACK for ease of testing
 class SortedDict(dict):
@@ -202,6 +203,9 @@ class TimeseriesTest(Chai):
     res = self.series.get( 'name', 'hour', condensed=True )
     assert_equals( {25200:'condensed'}, res)
 
+  def test_get_raises_unknowninterval(self):
+    assert_raises( UnknownInterval, self.series.get, 'name', 'lightyear' )
+
   def test_series_for_fine_when_steps_not_condensed(self):
     end_bucket = int( time.time()/3600 )
     start_bucket = end_bucket - 2   # -3+1
@@ -330,6 +334,9 @@ class TimeseriesTest(Chai):
       ((start_bucket+3)*60, 'prow4'),
       ((start_bucket+4)*60, 'prow5'),
     ]) )
+
+  def test_series_raises_unknowninterval(self):
+    assert_raises( UnknownInterval, self.series.series, 'name', 'lightyear' )
   
   def test__insert(self):
     assert_raises( NotImplementedError, self.series._insert, 'handle', 'key', 'value' )

@@ -3,6 +3,8 @@ Copyright (c) 2012, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
+from exceptions import *
+
 import operator
 import sys
 import time
@@ -187,6 +189,8 @@ class Timeseries(object):
 
     If the interval is count_only, values are cast to ints.
 
+    Raises UnknownInterval if `interval` not configured.
+
     TODO: Fix this method doc
     '''
     # TODO: support negative values of timestamp as "-N intervals", i.e.
@@ -194,7 +198,9 @@ class Timeseries(object):
     if not timestamp:
       timestamp = time.time()
 
-    config = self._intervals[interval]
+    config = self._intervals.get(interval)
+    if not config:
+      raise UnknownInterval(interval)
     i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
     
     rval = OrderedDict()    
@@ -229,11 +235,15 @@ class Timeseries(object):
 
     Returns an ordered dict of interval timestamps to a single interval, which
     matches the return value in get().
+
+    Raises UnknownInterval if `interval` not configured.
     '''
     # TODO: support start and end timestamps
     # TODO: support other ways of declaring the interval
 
-    config = self._intervals[interval]
+    config = self._intervals.get(interval)
+    if not config:
+      raise UnknownInterval(interval)
     step = config.get('step', 1)
     steps = steps if steps else config.get('steps',1)
     resolution = config.get('resolution',step)
