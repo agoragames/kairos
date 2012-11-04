@@ -8,6 +8,8 @@ particular, a single timeseries implements only a single type (e.g. Histogram)
 read and write functions are shared by all intervals in a timeseries, and the
 count_only support is now the timeseries type `count`. See README for details.
 
+Added exceptions. Only exception currently implemented is UnknownInterval.
+
 
 0.0.7
 =====
