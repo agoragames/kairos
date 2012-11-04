@@ -1,3 +1,14 @@
+0.1.0
+=====
+
+Beta of kairos for redis, significantly refactors the API. All types of 
+timeseries are created with the Timeseries constructor. The arguments to
+the constructor have been changed to simplify and clarify their usage. In
+particular, a single timeseries implements only a single type (e.g. Histogram)
+read and write functions are shared by all intervals in a timeseries, and the
+count_only support is now the timeseries type `count`. See README for details.
+
+
 0.0.7
 =====
 

@@ -142,13 +142,10 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
 Future
 ======
 
-* Tests
-* Documentation
-* Refactoring
-* Storage of objects
-* Histograms for compressing large intervals
+* Functional tests
 * Interfaces to support easy integration with Python statistics packages
-* Pipelining and other redis optimizations
+* Redis optimizations
+* Mongo backend
 
 License
 =======
