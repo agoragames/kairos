@@ -1,5 +1,5 @@
 '''
-Tests for timeseries
+Unit tests for timeseries
 '''
 
 import time
