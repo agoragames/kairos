@@ -388,13 +388,21 @@ class Count(Timeseries):
   '''
   Time series that simply increments within each interval.
   '''
+  
+  def insert(self, name, value=1, timestamp=None):
+    super(Count,self).insert(name, value, timestamp)
 
   # TODO: Let the count timeseries support positive and negative 
   def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
     '''
-    handle.incr(key)
+    if value==1:
+      handle.incr(key)
+    elif isinstance(value,float):
+      handle.incrbyfloat(key, value)
+    elif value!=0:
+      handle.incrby(key,value)
   
   def _get(self, handle, key):
     return handle.get(key)

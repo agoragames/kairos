@@ -428,10 +428,20 @@ class CountTest(Chai):
     self.series = Timeseries(self.client, type='count', prefix='foo', read_func=mock(), 
       write_func=mock(), intervals={})
 
-  def test_insert(self):
+  def test_insert_1(self):
     handle = mock()
     expect( handle.incr ).args( 'k' )
-    self.series._insert( handle, 'k', 'v' )
+    self.series._insert( handle, 'k', 1 )
+
+  def test_insert_float(self):
+    handle = mock()
+    expect( handle.incrbyfloat ).args( 'k', 3.14 )
+    self.series._insert( handle, 'k', 3.14 )
+
+  def test_insert_other(self):
+    handle = mock()
+    expect( handle.incrby ).args( 'k', 7 )
+    self.series._insert( handle, 'k', 7 )
 
   def test_get(self):
     handle = mock()
