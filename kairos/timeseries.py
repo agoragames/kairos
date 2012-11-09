@@ -228,7 +228,7 @@ class Timeseries(object):
       rval = { i_bucket*config['step'] : self._condense(rval) }
     return rval
   
-  def series(self, name, interval, steps=None, condensed=False):
+  def series(self, name, interval, steps=None, condensed=False, timestamp=None):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
@@ -240,6 +240,8 @@ class Timeseries(object):
     '''
     # TODO: support start and end timestamps
     # TODO: support other ways of declaring the interval
+    if not timestamp:
+      timestamp = time.time()
 
     config = self._intervals.get(interval)
     if not config:
@@ -248,7 +250,7 @@ class Timeseries(object):
     steps = steps if steps else config.get('steps',1)
     resolution = config.get('resolution',step)
 
-    end_timestamp = time.time()
+    end_timestamp = timestamp
     end_bucket = int( end_timestamp / step )
     start_bucket = end_bucket - steps +1 # +1 because it's inclusive of end
 
