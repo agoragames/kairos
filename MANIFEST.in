@@ -2,6 +2,6 @@ include *.txt
 include *.pip
 include README.rst
 include MANIFEST.in
-recursive-include scripts/ *
+recursive-include script/ *
 recursive-include kairos/ *.py
 prune *.pyc
