@@ -145,6 +145,7 @@ Future
 * Interfaces to support easy integration with Python statistics packages
 * Redis optimizations
 * Mongo backend
+* Ability to specify intervals in terms of days, weeks, etc.
 
 License
 =======
