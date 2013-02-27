@@ -35,7 +35,6 @@ Install `redis <http://pypi.python.org/pypi/redis>`_ and kairos. ::
     'minute':{
       'step':60,            # 60 seconds
       'steps':120,          # last 2 hours
-      'read_cast' : float,  # cast all results as floats
     }
   })
 
