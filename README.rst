@@ -101,6 +101,81 @@ Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
 output; ``watch -n 4 script/example`` is a useful tool as well.
 
+Inserting Data
+--------------
+
+There is one method to insert data, ``Timeseries.insert`` which takes the
+followng arguments:
+
+
+* **name** The name of the statistic
+* **value** The value of the statistic (optional for count timeseries)
+* **timestamp** `(optional)` The timestamp of the statstic, defaults to ``time.time()`` if not supplied
+
+For ``series`` and ``histogram`` timeseries types, ``value`` can be whatever 
+you'd like, optionally processed through the ``write_func`` method before being 
+written to storage. Depending on your needs, ``value`` (or the output of 
+``write_func``) does not have to be a number, and can be used to track such 
+things as unique occurances of a string or references to other objects, such 
+as MongoDB ObjectIds.
+
+For the ``count`` type, ``value`` is optional and should be a float or integer 
+representing the amount by which to increment or decrement ``name``; it defaults
+to ``1``.
+
+Data for all timeseries is stored in "buckets", where any Unix timestamp will
+resolve a consistent bucket name according to the ``step`` and ``resolution``
+attributes of a schema. A bucket will contain the following data structures for
+the corresponding series type.
+
+* **series** list
+* **histogram** dictionary (map)
+* **count** integer or float
+
+
+Reading Data
+------------
+
+There are two methods to read data, ``Timeseries.get`` and ``Timeseries.series``.
+``get`` will return data from a single bucket, and ``series`` will return data
+from several buckets.
+
+get
+***
+
+Supports the following parameters:
+
+* **name** The name of the statistic
+* **interval** The named interval to read from
+* **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
+* **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints. Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+
+Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
+and ``data`` is a data structure corresponding to the type of series, or whatever 
+``transform`` returns.  If not using resolutions or ``condensed=True``, the length 
+of the dictionary is 1, else it will be the number of resolution buckets within
+the interval that contained data.
+
+series
+******
+
+Almost identical to ``get``, supports the following parameters:
+
+* **name** The name of the statistic
+* **interval** The named interval to read from
+* **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1.
+* **timestamp** `(optional)` The timestamp of the last step to read, defaults to ``time.time()``; i.e. ``steps`` is the number of steps before ``timestamp``.
+* **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints. Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+
+Returns a dictionary of ``{ timestamp : { resolution_timestamp: data } }``, where 
+``timestamp`` and ``resolution_timestamp`` are Unix timestamps
+and ``data`` is a data structure corresponding to the type of series, or whatever 
+``transform`` returns.  If not using resolutions or ``condensed=True``, the dictionary
+will be of the form ``{ timestamp : data }``.
+
+
 Dragons!
 --------
 
@@ -146,11 +221,9 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
 Future
 ======
 
-* Functional tests
-* Interfaces to support easy integration with Python statistics packages
+* Complete functional tests
 * Redis optimizations
 * Mongo backend
-* Ability to specify intervals in terms of days, weeks, etc.
 
 License
 =======

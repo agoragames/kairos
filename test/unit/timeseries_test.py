@@ -203,6 +203,28 @@ class TimeseriesTest(Chai):
     res = self.series.get( 'name', 'hour', timestamp=3.14 )
     assert_equals( OrderedDict([(60, 'pdata1'), (120, 'pdata2'), (180, 'pdata3')]), res)
 
+  def test_get_for_fine_with_timestamp_and_transform(self):
+    # fine hour
+    expect( self.series._intervals['hour']['calc_keys'] ).args(
+      'name',3.14).returns( ('hibucket', 'hrbucket', 'hikey','hrkey') )
+
+    expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
+    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+      expect( self.series._get ).args(pipe, 'hikey:1')
+      expect( self.series._get ).args(pipe, 'hikey:2')
+      expect( self.series._get ).args(pipe, 'hikey:3')
+      expect( pipe.execute ).returns( ['data1','data2','data3'] )
+
+    expect( self.series._process_row ).args( 'data1' ).returns( [1,2,3] )
+    expect( self.series._process_row ).args( 'data2' ).returns( [4,5,6] )
+    expect( self.series._process_row ).args( 'data3' ).returns( [7,8,9] )
+    expect( self.series._transform ).args( [1,2,3], 'max' ).returns( 3 )
+    expect( self.series._transform ).args( [4,5,6], 'max' ).returns( 6 )
+    expect( self.series._transform ).args( [7,8,9], 'max' ).returns( 9 )
+
+    res = self.series.get( 'name', 'hour', timestamp=3.14, transform='max' )
+    assert_equals( OrderedDict([(60, 3), (120, 6), (180, 9)]), res)
+
   def test_get_for_coarse_without_timestamp(self):
     # coarse minute
     expect( self.series._intervals['minute']['calc_keys'] ).args(
@@ -235,6 +257,41 @@ class TimeseriesTest(Chai):
 
     res = self.series.get( 'name', 'hour', condensed=True )
     assert_equals( {25200:'condensed'}, res)
+
+  def test_get_for_fine_without_timestamp_and_condensed_and_transform(self):
+    # fine hour
+    expect( self.series._intervals['hour']['calc_keys'] ).args(
+      'name', almost_equals(time.time(),2) ).returns( (7, 'hrbucket', 'hikey','hrkey') )
+
+    expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
+    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+      expect( self.series._get ).args(pipe, 'hikey:1')
+      expect( self.series._get ).args(pipe, 'hikey:2')
+      expect( self.series._get ).args(pipe, 'hikey:3')
+      expect( pipe.execute ).returns( ['data1','data2','data3'] )
+
+    expect( self.series._process_row ).args( 'data1' ).returns( 'pdata1' )
+    expect( self.series._process_row ).args( 'data2' ).returns( 'pdata2' )
+    expect( self.series._process_row ).args( 'data3' ).returns( 'pdata3' )
+    expect( self.series._condense ).args( 
+      OrderedDict([(60, 'pdata1'), (120, 'pdata2'), (180, 'pdata3')]) ).returns(
+      [1,2,3])
+    expect( self.series._transform ).args([1,2,3], 'max').returns( 3 )
+
+    res = self.series.get( 'name', 'hour', condensed=True, transform='max' )
+    assert_equals( {25200:3}, res)
+
+  def test_get_for_coarse_without_timestamp_and_transform(self):
+    # coarse minute
+    expect( self.series._intervals['minute']['calc_keys'] ).args(
+      'name', almost_equals(time.time(),2) ).returns( (7, 'mrbucket', 'mikey','mrkey') )
+
+    expect( self.series._get ).args(self.client, 'mikey').returns( 'data' )
+    expect( self.series._process_row ).args( 'data' ).returns( [1,2,3] )
+    expect( self.series._transform ).args( [1,2,3], 'max' ).returns( 3 )
+
+    res = self.series.get( 'name', 'minute', transform='max' )
+    assert_equals( OrderedDict([(7*60, 3)]), res)
 
   def test_get_raises_unknowninterval(self):
     assert_raises( UnknownInterval, self.series.get, 'name', 'lightyear' )
@@ -286,6 +343,64 @@ class TimeseriesTest(Chai):
     assert_equals( OrderedDict([(240, 'prow4'), (300, 'prow5'), (360, 'prow6')]), 
       res[(start_bucket+1)*3600] )
     assert_equals( OrderedDict([(420, 'prow7'), (480, 'prow8'), (540, 'prow9')]), 
+      res[(start_bucket+2)*3600] )
+
+  def test_series_for_fine_when_steps_not_condensed_and_transform(self):
+    end_bucket = int( time.time()/3600 )
+    start_bucket = end_bucket - 2   # -3+1
+
+    # fetch all of the buckets which store resolution data for each of the
+    # intervals in the series. in the real world, the resolution buckets
+    # returned would have much larger numbers and be consistent with the
+    # interval buckets
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
+      expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
+
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
+      expect( pipe.execute ).returns( ['row1', 'row2', 'row3'] )
+      expect( self.series._process_row ).args( 'row1' ).returns( 'prow1' )
+      expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
+      expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
+      expect( self.series._transform ).args( 'prow1', 'max' ).returns( 'max1' )
+      expect( self.series._transform ).args( 'prow2', 'max' ).returns( 'max2' )
+      expect( self.series._transform ).args( 'prow3', 'max' ).returns( 'max3' )
+
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
+      expect( pipe.execute ).returns( ['row4', 'row5', 'row6'] )
+      expect( self.series._process_row ).args( 'row4' ).returns( 'prow4' )
+      expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
+      expect( self.series._process_row ).args( 'row6' ).returns( 'prow6' )
+      expect( self.series._transform ).args( 'prow4', 'max' ).returns( 'max4' )
+      expect( self.series._transform ).args( 'prow5', 'max' ).returns( 'max5' )
+      expect( self.series._transform ).args( 'prow6', 'max' ).returns( 'max6' )
+    
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
+      expect( pipe.execute ).returns( ['row7', 'row8', 'row9'] ) 
+      expect( self.series._process_row ).args( 'row7' ).returns( 'prow7' )
+      expect( self.series._process_row ).args( 'row8' ).returns( 'prow8' )
+      expect( self.series._process_row ).args( 'row9' ).returns( 'prow9' )
+      expect( self.series._transform ).args( 'prow7', 'max' ).returns( 'max7' )
+      expect( self.series._transform ).args( 'prow8', 'max' ).returns( 'max8' )
+      expect( self.series._transform ).args( 'prow9', 'max' ).returns( 'max9' )
+
+    res = self.series.series('name', 'hour', steps=3, transform='max')
+    assert_equals( OrderedDict([(60, 'max1'), (120, 'max2'), (180, 'max3')]), 
+      res[start_bucket*3600] )
+    assert_equals( OrderedDict([(240, 'max4'), (300, 'max5'), (360, 'max6')]), 
+      res[(start_bucket+1)*3600] )
+    assert_equals( OrderedDict([(420, 'max7'), (480, 'max8'), (540, 'max9')]), 
       res[(start_bucket+2)*3600] )
 
   def test_series_for_fine_when_steps_and_condensed(self):
@@ -341,6 +456,63 @@ class TimeseriesTest(Chai):
     assert_equals('c2', res[(start_bucket+1)*3600] )
     assert_equals('c3', res[(start_bucket+2)*3600] )
 
+  def test_series_for_fine_when_steps_and_condensed_and_transform(self):
+    end_bucket = int( time.time()/3600 )
+    start_bucket = end_bucket - 2   # -3+1
+
+    # fetch all of the buckets which store resolution data for each of the
+    # intervals in the series. in the real world, the resolution buckets
+    # returned would have much larger numbers and be consistent with the
+    # interval buckets
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
+      expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
+      expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
+
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
+      expect( pipe.execute ).returns( ['row1', 'row2', 'row3'] )
+      expect( self.series._process_row ).args( 'row1' ).returns( 'prow1' )
+      expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
+      expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
+
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
+      expect( pipe.execute ).returns( ['row4', 'row5', 'row6'] )
+      expect( self.series._process_row ).args( 'row4' ).returns( 'prow4' )
+      expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
+      expect( self.series._process_row ).args( 'row6' ).returns( 'prow6' )
+    
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
+      expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
+      expect( pipe.execute ).returns( ['row7', 'row8', 'row9'] ) 
+      expect( self.series._process_row ).args( 'row7' ).returns( 'prow7' )
+      expect( self.series._process_row ).args( 'row8' ).returns( 'prow8' )
+      expect( self.series._process_row ).args( 'row9' ).returns( 'prow9' )
+
+    expect( self.series._condense ).args(
+      OrderedDict([(60, 'prow1'), (120, 'prow2'), (180, 'prow3')]) ).returns('c1')
+    expect( self.series._condense ).args(
+      OrderedDict([(240, 'prow4'), (300, 'prow5'), (360, 'prow6')]) ).returns('c2')
+    expect( self.series._condense ).args(
+      OrderedDict([(420, 'prow7'), (480, 'prow8'), (540, 'prow9')]) ).returns('c3')
+    
+    expect( self.series._transform ).args( 'c1', 'max' ).returns( 'max1' )
+    expect( self.series._transform ).args( 'c2', 'max' ).returns( 'max2' )
+    expect( self.series._transform ).args( 'c3', 'max' ).returns( 'max3' )
+
+    res = self.series.series('name', 'hour', steps=3, condensed=True, transform='max')
+    assert_equals('max1', res[start_bucket*3600] )
+    assert_equals('max2', res[(start_bucket+1)*3600] )
+    assert_equals('max3', res[(start_bucket+2)*3600] )
+
   def test_series_for_coarse_when_no_steps(self):
     end_bucket = int( time.time()/60 )
     start_bucket = end_bucket - 4   # -5+1
@@ -368,6 +540,38 @@ class TimeseriesTest(Chai):
       ((start_bucket+4)*60, 'prow5'),
     ]) )
 
+  def test_series_for_coarse_when_no_steps_and_transform(self):
+    end_bucket = int( time.time()/60 )
+    start_bucket = end_bucket - 4   # -5+1
+    
+    with expect( self.client.pipeline ).returns(mock()) as pipe:
+      expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket))
+      expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+1))
+      expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+2))
+      expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+3))
+      expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+4))
+      expect( pipe.execute ).returns( ['row1', 'row2', 'row3', 'row4', 'row5'] )
+    
+    expect( self.series._process_row ).args( 'row1' ).returns( 'prow1' )
+    expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
+    expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
+    expect( self.series._process_row ).args( 'row4' ).returns( 'prow4' )
+    expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
+    expect( self.series._transform ).args( 'prow1', 'max' ).returns( 'max1' )
+    expect( self.series._transform ).args( 'prow2', 'max' ).returns( 'max2' )
+    expect( self.series._transform ).args( 'prow3', 'max' ).returns( 'max3' )
+    expect( self.series._transform ).args( 'prow4', 'max' ).returns( 'max4' )
+    expect( self.series._transform ).args( 'prow5', 'max' ).returns( 'max5' )
+    
+    res = self.series.series('name', 'minute', transform='max')
+    assert_equals( res, OrderedDict([
+      (start_bucket*60, 'max1'),
+      ((start_bucket+1)*60, 'max2'),
+      ((start_bucket+2)*60, 'max3'),
+      ((start_bucket+3)*60, 'max4'),
+      ((start_bucket+4)*60, 'max5'),
+    ]) )
+
   def test_series_raises_unknowninterval(self):
     assert_raises( UnknownInterval, self.series.series, 'name', 'lightyear' )
   
@@ -382,6 +586,9 @@ class TimeseriesTest(Chai):
 
   def test__condense(self):
     assert_raises( NotImplementedError, self.series._condense, 'data' )
+
+  def test__transform(self):
+    assert_raises( NotImplementedError, self.series._transform, 'data', 'max' )
 
 
 class SeriesTest(Chai):
@@ -418,6 +625,17 @@ class SeriesTest(Chai):
 
     assert_equals( [], self.series._condense({}) )
 
+  def test_transform(self):
+    assert_equals( 2, self.series._transform([1,2,3], 'mean') )
+    assert_equals( 3, self.series._transform([1,2,3], 'count') )
+    assert_equals( 1, self.series._transform([1,2,3], 'min') )
+    assert_equals( 3, self.series._transform([1,2,3], 'max') )
+    assert_equals( 6, self.series._transform([1,2,3], 'sum') )
+
+    cable = mock()
+    with expect(cable).args([1,2,3]).returns(5):
+      assert_equals( 5, self.series._transform([1,2,3], cable) )
+
 class HistogramTest(Chai):
 
   def setUp(self):
@@ -451,6 +669,19 @@ class HistogramTest(Chai):
     assert_equals( {'x':4,'y':6}, self.series._condense(x) )
 
     assert_equals( {}, self.series._condense({}) )
+
+  def test_transform(self):
+    d = { 1.0: 4, 3.0: 2 }
+
+    assert_almost_equals( 1.667, self.series._transform(d, 'mean'), 3 )
+    assert_equals( 6, self.series._transform(d, 'count') )
+    assert_equals( 1.0, self.series._transform(d, 'min') )
+    assert_equals( 3.0, self.series._transform(d, 'max') )
+    assert_equals( 10, self.series._transform(d, 'sum') )
+
+    cable = mock()
+    with expect(cable).args([1.0,1.0,1.0,1.0,3.0,3.0]).returns(84):
+      assert_equals( 84, self.series._transform(d, cable) )
 
 class CountTest(Chai):
 
@@ -490,3 +721,10 @@ class CountTest(Chai):
     assert_equals( 4, self.series._condense(x) )
 
     assert_equals( 0, self.series._condense({}) )
+
+  def test_transform(self):
+    cable = mock()
+    with expect(cable).args(5).returns(84):
+      assert_equals( 84, self.series._transform(5, cable) )
+
+    assert_equals( 32, self.series._transform(32, 'max') )

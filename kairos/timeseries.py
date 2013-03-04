@@ -207,7 +207,7 @@ class Timeseries(object):
       pipe.delete( key )
     pipe.execute()
 
-  def get(self, name, interval, timestamp=None, condensed=False):
+  def get(self, name, interval, timestamp=None, condensed=False, transform=None):
     '''
     Get the set of values for a named timeseries and interval. If timestamp
     supplied, will fetch data for the period of time in which that timestamp
@@ -217,9 +217,13 @@ class Timeseries(object):
     interval and the values are the time series data in that (sub)interval. 
     This allows the user to interpolate sparse data sets.
 
-    If the interval is count_only, values are cast to ints.
+    If transform is defined, will utilize one of `[mean, count, min, max, sum]`
+    to process each row of data returned. If the transform is a callable, will
+    pass an array of data to the function. Note that the transform will be run
+    after the data is condensed.
 
-    Raises UnknownInterval if `interval` not configured.
+    Raises UnknownInterval if `interval` is not one of the configured 
+    intervals.
 
     TODO: Fix this method doc
     '''
@@ -256,15 +260,23 @@ class Timeseries(object):
     # If condensed, collapse the result into a single row
     if condensed and not config['coarse']:
       rval = { i_bucket*config['step'] : self._condense(rval) }
+    if transform:
+      for k,v in rval.iteritems():
+        rval[k] = self._transform(v, transform)
     return rval
   
-  def series(self, name, interval, steps=None, condensed=False, timestamp=None):
+  def series(self, name, interval, steps=None, condensed=False, timestamp=None, transform=None):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
 
     Returns an ordered dict of interval timestamps to a single interval, which
     matches the return value in get().
+
+    If transform is defined, will utilize one of `[mean, count, min, max, sum]`
+    to process each row of data returned. If the transform is a callable, will
+    pass an array of data to the function. Note that the transform will be run
+    after the data is condensed.
 
     Raises UnknownInterval if `interval` not configured.
     '''
@@ -306,7 +318,10 @@ class Timeseries(object):
       interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
       if config['coarse']:
-        rval[interval_bucket*step] = self._process_row( data )
+        data = self._process_row( data )
+        if transform:
+          data = self._transform(data, transform)
+        rval[interval_bucket*step] = data
       else:
         pipe = self._client.pipeline()
         resolution_buckets = sorted(map(int,data))
@@ -321,11 +336,26 @@ class Timeseries(object):
             self._process_row(data)
 
     # If condensed, collapse each interval into a single value
-    if condensed and step!=resolution:
-      for key in rval.keys():
-        rval[key] = self._condense( rval[key] )
+    if not config['coarse']:
+      if condensed:
+        for key in rval.iterkeys():
+          data = self._condense( rval[key] )
+          if transform:
+            data = self._transform(data, transform)
+          rval[key] = data
+      elif transform:
+        for interval,resolutions in rval.iteritems():
+          for key in resolutions.iterkeys():
+            resolutions[key] = self._transform(resolutions[key], transform)
     
     return rval
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    raise NotImplementedError()
 
   def _insert(self, handle, key, value):
     '''
@@ -361,6 +391,27 @@ class Series(Timeseries):
   Simple time series where all data is stored in a list for each interval.
   '''
 
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if transform=='mean':
+      total = sum( data )
+      count = len( data )
+      data = float(total)/float(count) if count>0 else 0
+    elif transform=='count':
+      data = len( data )
+    elif transform=='min':
+      data = min( data or [0])
+    elif transform=='max':
+      data = max( data or [0])
+    elif transform=='sum':
+      data = sum( data )
+    elif callable(transform):
+      data = transform(data)
+    return data
+
   def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
@@ -389,6 +440,28 @@ class Histogram(Timeseries):
   same value within an interval. It is up to the user to determine the precision
   and distribution of the data points within the histogram.
   '''
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if transform=='mean':
+      total = sum( k*v for k,v in data.iteritems() )
+      count = sum( data.values() )
+      data = float(total)/float(count) if count>0 else 0
+    elif transform=='count':
+      data = sum(data.values())
+    elif transform=='min':
+      data = min(data.keys() or [0])
+    elif transform=='max':
+      data = max(data.keys() or [0])
+    elif transform=='sum':
+      data = sum( k*v for k,v in data.iteritems() )
+    elif callable(transform):
+      data = reduce( operator.add, ([k]*v for k,v in sorted(data.iteritems())) )
+      data = transform(data)
+    return data
 
   def _insert(self, handle, key, value):
     '''
@@ -420,6 +493,15 @@ class Count(Timeseries):
   '''
   Time series that simply increments within each interval.
   '''
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if callable(transform):
+      data = transform(data)
+    return data
   
   def insert(self, name, value=1, timestamp=None):
     super(Count,self).insert(name, value, timestamp)
