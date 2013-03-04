@@ -8,11 +8,41 @@ from exceptions import *
 import operator
 import sys
 import time
+import re
 
 if sys.version_info[:2] > (2, 6):
     from collections import OrderedDict
 else:
     from ordereddict import OrderedDict
+
+NUMBER_TIME = re.compile('^[\d]+$')
+SIMPLE_TIME = re.compile('^([\d]+)([hdwmy])$')
+
+SIMPLE_TIMES = {
+  'h' : 60*60,        # hour
+  'd' : 60*60*24,     # day
+  'w' : 60*60*24*7,   # week
+  'm' : 60*60*24*30,  # month(-ish)
+  'y' : 60*60*24*365, # year(-ish)
+}
+
+def _resolve_time(value):
+  '''
+  Resolve the time in seconds of a configuration value.
+  '''
+  if value is None or isinstance(value,(int,long)):
+    return value
+
+  if NUMBER_TIME.match(value):
+    return long(value)
+
+  simple = SIMPLE_TIME.match(value)
+  if SIMPLE_TIME.match(value):
+    multiplier = long( simple.groups()[0] )
+    constant = SIMPLE_TIMES[ simple.groups()[1] ]
+    return multiplier * constant
+
+  raise ValueError('Unsupported time format %s'%value)
 
 class Timeseries(object):
   '''
@@ -102,9 +132,9 @@ class Timeseries(object):
 
     # Preprocess the intervals
     for interval,config in self._intervals.iteritems():
-      step = int( config.get('step') )  # Required
-      steps = config.get('steps',None)  # Optional
-      resolution = int( config.get('resolution',step) ) # Optional
+      step = _resolve_time( config['step'] ) # Required
+      steps = config.get('steps',None)       # Optional
+      resolution = _resolve_time( config.get('resolution',step) ) # Optional
 
       def calc_keys(name, timestamp, s=step, r=resolution, i=interval):
         interval_bucket = int( timestamp/s )
@@ -120,7 +150,7 @@ class Timeseries(object):
       config['calc_keys'] = calc_keys
       config['expire'] = expire
       config['coarse'] = (resolution==step)
-        
+
   def insert(self, name, value, timestamp=None):
     '''
     Insert a value for the timeseries "name". For each interval in the 

@@ -88,6 +88,39 @@ class TimeseriesTest(Chai):
     assert_equals( (i, r, 'foo:test:hour:%s'%(i), 'foo:test:hour:%s:%s'%(i,r)), 
       t._intervals['hour']['calc_keys']('test', now) )
 
+  def test_init_with_relative_time_args(self):
+    t = Timeseries(self.client, type='series', prefix='foo', read_func='get', 
+      write_func='set', intervals={
+        'hour' : {
+          'step' : '1h',
+          'steps' : 5,
+        },
+        'year' : {
+          'step' : '1y',
+          'resolution' : '1d',
+        }
+      } )
+    assert_equals( self.client, t._client )
+    assert_equals( 'get', t._read_func )
+    assert_equals( 'set', t._write_func )
+    assert_equals( 'foo:', t._prefix )
+
+    assert_equals( 5*60*60, t._intervals['hour']['expire'] )
+    assert_false( t._intervals['year']['expire'] )
+    assert_true( t._intervals['hour']['coarse'] )
+    assert_false( t._intervals['year']['coarse'] )
+
+    now = time.time()
+
+    i = r = int(now/3600)
+    assert_equals( (i, r, 'foo:test:hour:%s'%(i), 'foo:test:hour:%s:%s'%(i,r)), 
+      t._intervals['hour']['calc_keys']('test', now) )
+    
+    i = long(now/(60*60*24*365))
+    r = long(now/(60*60*24))
+    assert_equals( (i, r, 'foo:test:year:%s'%(i), 'foo:test:year:%s:%s'%(i,r)), 
+      t._intervals['year']['calc_keys']('test', now) )
+
   def test_insert_with_timestamp_and_write_func(self):
     pipeline = mock()
     self.series._write_func = mock()

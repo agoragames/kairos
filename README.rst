@@ -92,6 +92,11 @@ keyword arguments to the constructor are: ::
       }
     }
 
+In addition to specifying ``step`` and ``resolution`` in terms of seconds, 
+kairos also supports a simplified format for larger time intervals. For
+hours (h), days (d), weeks (w), months (m) and years (y), you can use 
+the format ``30d`` to represent 30 days, for example.
+
 Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
 output; ``watch -n 4 script/example`` is a useful tool as well.
