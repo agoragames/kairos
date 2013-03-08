@@ -171,7 +171,7 @@ class Timeseries(object):
     # TODO: document behavior when time is outside the bounds of step*steps
     # TODO: document how the data is stored.
 
-    pipe = self._client.pipeline()
+    pipe = self._client.pipeline(transaction=False)
 
     for interval,config in self._intervals.iteritems():
       i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
@@ -202,7 +202,7 @@ class Timeseries(object):
     '''
     keys = self._client.keys('%s%s:*'%(self._prefix,name))
 
-    pipe = self._client.pipeline()
+    pipe = self._client.pipeline(transaction=False)
     for key in keys:
       pipe.delete( key )
     pipe.execute()
@@ -247,7 +247,7 @@ class Timeseries(object):
 
       # Create a pipe and go fetch all the data for each.
       # TODO: turn off transactions here?
-      pipe = self._client.pipeline()
+      pipe = self._client.pipeline(transaction=False)
       for bucket in resolution_buckets:
         r_key = '%s:%s'%(i_key, bucket)   # TODO: make this the "resolution_bucket" closure?
         self._get(pipe, r_key)
@@ -298,7 +298,7 @@ class Timeseries(object):
 
     # First grab all the intervals that matter
       # TODO: use closures on the config for generating this interval key
-    pipe = self._client.pipeline()
+    pipe = self._client.pipeline(transaction=False)
     rval = OrderedDict()
     for s in range(steps):
       interval_bucket = start_bucket + s
@@ -323,7 +323,7 @@ class Timeseries(object):
           data = self._transform(data, transform)
         rval[interval_bucket*step] = data
       else:
-        pipe = self._client.pipeline()
+        pipe = self._client.pipeline(transaction=False)
         resolution_buckets = sorted(map(int,data))
         for bucket in resolution_buckets:
           # TODO: use closures on the config for generating this resolution key
@@ -511,12 +511,11 @@ class Count(Timeseries):
     '''
     Insert the value into the series.
     '''
-    if value==1:
-      handle.incr(key)
-    elif isinstance(value,float):
-      handle.incrbyfloat(key, value)
-    elif value!=0:
-      handle.incrby(key,value)
+    if value!=0:
+      if isinstance(value,float):
+        handle.incrbyfloat(key, value)
+      else:
+        handle.incr(key,value)
   
   def _get(self, handle, key):
     return handle.get(key)

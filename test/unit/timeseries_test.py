@@ -126,7 +126,7 @@ class TimeseriesTest(Chai):
     self.series._write_func = mock()
     
     expect( self.series._write_func ).args('val').returns('value')
-    expect( self.client.pipeline ).returns( pipeline )
+    expect( self.client.pipeline ).args(transaction=False).returns( pipeline )
 
     # not coarse hour
     expect( self.series._intervals['hour']['calc_keys'] ).args('name',3.14).returns( ('hibucket', 'hrbucket', 'hikey','hrkey') )
@@ -147,7 +147,7 @@ class TimeseriesTest(Chai):
     self.series._write_func = mock()
     
     expect( self.series._write_func ).args('val').returns('value')
-    expect( self.client.pipeline ).returns( pipeline )
+    expect( self.client.pipeline ).args(transaction=False).returns( pipeline )
     
     # set resolution and expiry
     self.series._intervals['minute']['coarse'] = False
@@ -176,7 +176,7 @@ class TimeseriesTest(Chai):
   def test_delete(self):
     expect( self.series._client.keys ).args( 'foo:name:*' ).returns( ['k1','k2','k3'] )
 
-    with expect( self.series._client.pipeline ).returns( mock() ) as pipe:
+    with expect( self.series._client.pipeline ).args(transaction=False).returns( mock() ) as pipe:
       expect( pipe.delete ).args( 'k1' )
       expect( pipe.delete ).args( 'k2' )
       expect( pipe.delete ).args( 'k3' )
@@ -190,7 +190,7 @@ class TimeseriesTest(Chai):
       'name',3.14).returns( ('hibucket', 'hrbucket', 'hikey','hrkey') )
 
     expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
-    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns( mock() ) as pipe:
       expect( self.series._get ).args(pipe, 'hikey:1')
       expect( self.series._get ).args(pipe, 'hikey:2')
       expect( self.series._get ).args(pipe, 'hikey:3')
@@ -209,7 +209,7 @@ class TimeseriesTest(Chai):
       'name',3.14).returns( ('hibucket', 'hrbucket', 'hikey','hrkey') )
 
     expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
-    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns( mock() ) as pipe:
       expect( self.series._get ).args(pipe, 'hikey:1')
       expect( self.series._get ).args(pipe, 'hikey:2')
       expect( self.series._get ).args(pipe, 'hikey:3')
@@ -242,7 +242,7 @@ class TimeseriesTest(Chai):
       'name', almost_equals(time.time(),2) ).returns( (7, 'hrbucket', 'hikey','hrkey') )
 
     expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
-    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns( mock() ) as pipe:
       expect( self.series._get ).args(pipe, 'hikey:1')
       expect( self.series._get ).args(pipe, 'hikey:2')
       expect( self.series._get ).args(pipe, 'hikey:3')
@@ -264,7 +264,7 @@ class TimeseriesTest(Chai):
       'name', almost_equals(time.time(),2) ).returns( (7, 'hrbucket', 'hikey','hrkey') )
 
     expect( self.client.smembers ).args( 'hikey' ).returns( ['1','2','03'] )
-    with expect( self.client.pipeline ).returns( mock() ) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns( mock() ) as pipe:
       expect( self.series._get ).args(pipe, 'hikey:1')
       expect( self.series._get ).args(pipe, 'hikey:2')
       expect( self.series._get ).args(pipe, 'hikey:3')
@@ -304,13 +304,13 @@ class TimeseriesTest(Chai):
     # intervals in the series. in the real world, the resolution buckets
     # returned would have much larger numbers and be consistent with the
     # interval buckets
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
       expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
@@ -319,7 +319,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
       expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
@@ -328,7 +328,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
       expect( self.series._process_row ).args( 'row6' ).returns( 'prow6' )
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
@@ -353,13 +353,13 @@ class TimeseriesTest(Chai):
     # intervals in the series. in the real world, the resolution buckets
     # returned would have much larger numbers and be consistent with the
     # interval buckets
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
       expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
@@ -371,7 +371,7 @@ class TimeseriesTest(Chai):
       expect( self.series._transform ).args( 'prow2', 'max' ).returns( 'max2' )
       expect( self.series._transform ).args( 'prow3', 'max' ).returns( 'max3' )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
@@ -383,7 +383,7 @@ class TimeseriesTest(Chai):
       expect( self.series._transform ).args( 'prow5', 'max' ).returns( 'max5' )
       expect( self.series._transform ).args( 'prow6', 'max' ).returns( 'max6' )
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
@@ -411,13 +411,13 @@ class TimeseriesTest(Chai):
     # intervals in the series. in the real world, the resolution buckets
     # returned would have much larger numbers and be consistent with the
     # interval buckets
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
       expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
@@ -426,7 +426,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
       expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
@@ -435,7 +435,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
       expect( self.series._process_row ).args( 'row6' ).returns( 'prow6' )
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
@@ -464,13 +464,13 @@ class TimeseriesTest(Chai):
     # intervals in the series. in the real world, the resolution buckets
     # returned would have much larger numbers and be consistent with the
     # interval buckets
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+1) )
       expect( pipe.smembers ).args( 'foo:name:hour:%s'%(start_bucket+2) )
       expect( pipe.execute ).returns( [('1','2','03'),('4','05','6'),('7','8','9')] )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:1'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:2'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:3'%(start_bucket))
@@ -479,7 +479,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row2' ).returns( 'prow2' )
       expect( self.series._process_row ).args( 'row3' ).returns( 'prow3' )
 
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:4'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:5'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:6'%(start_bucket+1))
@@ -488,7 +488,7 @@ class TimeseriesTest(Chai):
       expect( self.series._process_row ).args( 'row5' ).returns( 'prow5' )
       expect( self.series._process_row ).args( 'row6' ).returns( 'prow6' )
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:7'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:8'%(start_bucket+2))
       expect( self.series._get ).args(pipe, 'foo:name:hour:%s:9'%(start_bucket+2))
@@ -517,7 +517,7 @@ class TimeseriesTest(Chai):
     end_bucket = int( time.time()/60 )
     start_bucket = end_bucket - 4   # -5+1
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+2))
@@ -544,7 +544,7 @@ class TimeseriesTest(Chai):
     end_bucket = int( time.time()/60 )
     start_bucket = end_bucket - 4   # -5+1
     
-    with expect( self.client.pipeline ).returns(mock()) as pipe:
+    with expect( self.client.pipeline ).args(transaction=False).returns(mock()) as pipe:
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket))
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+1))
       expect( self.series._get ).args(pipe, 'foo:name:minute:%s'%(start_bucket+2))
@@ -692,20 +692,19 @@ class CountTest(Chai):
     self.series = Timeseries(self.client, type='count', prefix='foo', read_func=mock(), 
       write_func=mock(), intervals={})
 
-  def test_insert_1(self):
-    handle = mock()
-    expect( handle.incr ).args( 'k' )
-    self.series._insert( handle, 'k', 1 )
-
   def test_insert_float(self):
     handle = mock()
     expect( handle.incrbyfloat ).args( 'k', 3.14 )
     self.series._insert( handle, 'k', 3.14 )
 
-  def test_insert_other(self):
+  def test_insert_int(self):
     handle = mock()
-    expect( handle.incrby ).args( 'k', 7 )
+    expect( handle.incr ).args( 'k', 7 )
     self.series._insert( handle, 'k', 7 )
+
+  def test_insert_0(self):
+    self.series._insert( mock(), 'k', 0 )
+    self.series._insert( mock(), 'k', 0.0 )
 
   def test_get(self):
     handle = mock()
