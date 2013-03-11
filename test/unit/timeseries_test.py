@@ -48,6 +48,9 @@ class TimeseriesTest(Chai):
     t = Timeseries.__new__(Timeseries, type='count')
     assert_true( isinstance(t, Count) )
 
+    t = Timeseries.__new__(Timeseries, type='gauge')
+    assert_true( isinstance(t, Gauge) )
+
   def test_init_with_no_args(self):
     t = Timeseries('client', type='series')
     assert_equals( 'client', t._client )
@@ -720,6 +723,42 @@ class CountTest(Chai):
     assert_equals( 4, self.series._condense(x) )
 
     assert_equals( 0, self.series._condense({}) )
+
+  def test_transform(self):
+    cable = mock()
+    with expect(cable).args(5).returns(84):
+      assert_equals( 84, self.series._transform(5, cable) )
+
+    assert_equals( 32, self.series._transform(32, 'max') )
+
+class GaugeTest(Chai):
+
+  def setUp(self):
+    super(GaugeTest,self).setUp()
+
+    self.client = mock()
+    self.series = Timeseries(self.client, type='gauge', prefix='foo', read_func=mock(), 
+      write_func=mock(), intervals={})
+
+  def test_insert(self):
+    handle = mock()
+    expect( handle.set ).args( 'k', 7 )
+    self.series._insert( handle, 'k', 7 )
+
+  def test_get(self):
+    handle = mock()
+    expect( handle.get ).args( 'k' ).returns('data')
+    assert_equals( 'data', self.series._get(handle, 'k') )
+
+  def test_process_row(self):
+    assert_equals( '42', self.series._process_row('42') )
+    assert_equals( '', self.series._process_row('') )
+
+  def test_condense(self):
+    x = OrderedDict([('a', 1), ('b', 3)])
+    assert_equals( [1,3], self.series._condense(x) )
+
+    assert_equals( [], self.series._condense({}) )
 
   def test_transform(self):
     cable = mock()

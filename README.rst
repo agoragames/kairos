@@ -2,7 +2,7 @@
 Kairos - Time series data storage in Redis
 ==========================================
 
-:Version: 0.1.3
+:Version: 0.1.4
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, time, rrd, gevent
@@ -51,6 +51,7 @@ keyword arguments to the constructor are: ::
     series - each interval will append values to a list
     histogram - each interval will track count of unique values
     count - each interval will maintain a single counter
+    gauge - each interval will store the most recent data point
 
   prefix
     Optional, is a prefix for all keys in this histogram. If supplied
@@ -122,6 +123,8 @@ as MongoDB ObjectIds.
 For the ``count`` type, ``value`` is optional and should be a float or integer 
 representing the amount by which to increment or decrement ``name``; it defaults
 to ``1``.
+
+For the ``gauge`` type, ``value`` can be anything and it will be stored as-is.
 
 Data for all timeseries is stored in "buckets", where any Unix timestamp will
 resolve a consistent bucket name according to the ``step`` and ``resolution``

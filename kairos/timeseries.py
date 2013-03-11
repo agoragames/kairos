@@ -59,6 +59,8 @@ class Timeseries(object):
         return Histogram.__new__(Histogram, *args, **kwargs)
       elif ttype=='count':
         return Count.__new__(Count, *args, **kwargs)
+      elif ttype=='gauge':
+        return Gauge.__new__(Gauge, *args, **kwargs)
     return object.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
@@ -506,7 +508,6 @@ class Count(Timeseries):
   def insert(self, name, value=1, timestamp=None):
     super(Count,self).insert(name, value, timestamp)
 
-  # TODO: Let the count timeseries support positive and negative 
   def _insert(self, handle, key, value):
     '''
     Insert the value into the series.
@@ -530,3 +531,37 @@ class Count(Timeseries):
     if data:
       return sum(data.values())
     return 0
+
+class Gauge(Timeseries):
+  '''
+  Time series that stores the last value.
+  '''
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if callable(transform):
+      data = transform(data)
+    return data
+  
+  def _insert(self, handle, key, value):
+    '''
+    Insert the value into the series.
+    '''
+    handle.set(key, value)
+  
+  def _get(self, handle, key):
+    return handle.get(key)
+
+  def _process_row(self, data):
+    return data
+
+  def _condense(self, data):
+    '''
+    Condense by adding together all of the lists.
+    '''
+    if data:
+      return data.values()
+    return []
