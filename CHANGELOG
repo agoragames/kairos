@@ -1,3 +1,14 @@
+0.1.5
+=====
+
+Fixed bug in turning relative interval definitions into integers for
+calculations in get() and series().
+
+0.1.4
+=====
+
+Added a gauge type
+
 0.1.3
 =====
 

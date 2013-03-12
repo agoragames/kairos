@@ -112,6 +112,9 @@ class TimeseriesTest(Chai):
     assert_false( t._intervals['year']['expire'] )
     assert_true( t._intervals['hour']['coarse'] )
     assert_false( t._intervals['year']['coarse'] )
+    assert_equals( 60*60, t._intervals['hour']['step'] )
+    assert_equals( 60*60*24*365, t._intervals['year']['step'] )
+    assert_equals( 60*60*24, t._intervals['year']['resolution'] )
 
     now = time.time()
 

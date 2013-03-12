@@ -132,11 +132,15 @@ class Timeseries(object):
     if len(self._prefix) and not self._prefix.endswith(':'):
       self._prefix += ':'
 
+
     # Preprocess the intervals
     for interval,config in self._intervals.iteritems():
-      step = _resolve_time( config['step'] ) # Required
+      # Re-write the configuration values so that it doesn't have to be
+      # processed every time.
+      step = config['step'] = _resolve_time( config['step'] ) # Required
       steps = config.get('steps',None)       # Optional
-      resolution = _resolve_time( config.get('resolution',step) ) # Optional
+      resolution = config['resolution'] = _resolve_time( 
+        config.get('resolution',config['step']) ) # Optional
 
       def calc_keys(name, timestamp, s=step, r=resolution, i=interval):
         interval_bucket = int( timestamp/s )
