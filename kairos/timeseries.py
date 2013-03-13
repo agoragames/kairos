@@ -309,7 +309,6 @@ class Timeseries(object):
     for s in range(steps):
       interval_bucket = start_bucket + s
       i_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
-      rval[interval_bucket*step] = OrderedDict()
 
       if config['coarse']:
         self._get(pipe, i_key)
@@ -329,6 +328,7 @@ class Timeseries(object):
           data = self._transform(data, transform)
         rval[interval_bucket*step] = data
       else:
+        rval[interval_bucket*step] = OrderedDict()
         pipe = self._client.pipeline(transaction=False)
         resolution_buckets = sorted(map(int,data))
         for bucket in resolution_buckets:
