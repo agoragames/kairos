@@ -227,6 +227,7 @@ Future
 * Complete functional tests
 * Redis optimizations
 * Mongo backend
+* Bloom filters
 
 License
 =======
