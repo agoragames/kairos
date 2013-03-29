@@ -228,6 +228,7 @@ Future
 * Redis optimizations
 * Mongo backend
 * Bloom filters
+* "Native" transforms that leverage data store features (e.g. "length")
 
 License
 =======
