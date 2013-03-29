@@ -432,15 +432,6 @@ class Histogram(Timeseries):
       data = transform(data)
     return data
 
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    handle.hincrby(key, value, 1)
-
-  def _get(self, handle, key):
-    return handle.hgetall(key)
-
   def _process_row(self, data):
     rval = {}
     for value,count in data.iteritems():
@@ -476,19 +467,6 @@ class Count(Timeseries):
   def insert(self, name, value=1, timestamp=None):
     super(Count,self).insert(name, value, timestamp)
 
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    if value!=0:
-      if isinstance(value,float):
-        handle.incrbyfloat(key, value)
-      else:
-        handle.incr(key,value)
-  
-  def _get(self, handle, key):
-    return handle.get(key)
-
   def _process_row(self, data):
     return int(data) if data else 0
 
@@ -514,17 +492,10 @@ class Gauge(Timeseries):
     if callable(transform):
       data = transform(data)
     return data
-  
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    handle.set(key, value)
-  
-  def _get(self, handle, key):
-    return handle.get(key)
 
   def _process_row(self, data):
+    if self._read_func:
+      return self._read_func(data or '')
     return data
 
   def _condense(self, data):
