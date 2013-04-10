@@ -258,7 +258,7 @@ class Timeseries(object):
         rval[k] = self._transform(v, transform)
     return rval
 
-  def _get(self, name, value, timestamp):
+  def _get(self, name, interval, config, timestamp):
     '''
     Support for the insert per type of series.
     '''
@@ -330,10 +330,9 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
     
-  def _get(self, handle, key):
+  def _series(self, name, interval, config, buckets):
     '''
-    Subclasses must implement fetching from a key. Should return the result
-    of the call event if handle is a pipeline.
+    Subclasses must implement fetching a series.
     '''
     raise NotImplementedError()
 

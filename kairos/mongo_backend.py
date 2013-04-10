@@ -13,11 +13,6 @@ import pymongo
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime
 
-#if sys.version_info[:2] > (2, 6):
-    #from collections import OrderedDict
-#else:
-    #from ordereddict import OrderedDict
-
 from timeseries import *
 
 class MongoBackend(Timeseries):
@@ -42,7 +37,14 @@ class MongoBackend(Timeseries):
     '''
     Initialize the mongo backend after timeseries has processed the configuration.
     '''
+    if isinstance(client, pymongo.MongoClient):
+      client = client['kairos']
+    elif not isinstance(client, pymongo.database.Database):
+      raise ValueError('Mongo handle must be MongoClient or database instance')
     super(MongoBackend,self).__init__(client, **kwargs)
+
+    # HACK until calckeys is abstracted better
+    self._prefix = ''
     
     # Define the indices for lookups and TTLs
     for interval,config in self._intervals.iteritems():
@@ -63,7 +65,7 @@ class MongoBackend(Timeseries):
           background=True )
       if config['expire']:
         self._client[interval].ensure_index( 
-          [('expire_from',ASCENDING)], expireAfterSeconds=expire, background=True )
+          [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
 
   def _insert(self, name, value, timestamp):
     '''
@@ -98,10 +100,60 @@ class MongoBackend(Timeseries):
 
       # switch to atomic updates
       insert = {'$set':insert.copy()}
-      self._insert( insert, value )
+      self._insert_type( insert, value )
       
       # TODO: use write preference settings if we have them
       self._client[interval].update( query, insert, upsert=True, check_keys=False )
+
+  def _get(self, name, interval, config, timestamp):
+    '''
+    Get the interval.
+    '''
+    i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
+
+    rval = OrderedDict()
+    query = {'name':name, 'interval':i_bucket}
+    if config['coarse']:
+      record = self._client[interval].find_one( query )
+      if record:
+        data = self._process_row( record['value'] )
+        rval[ i_bucket*config['step'] ] = data
+      else:
+        rval[ i_bucket*config['step'] ] = self._type_no_value()
+    else:
+      sort = [('interval', ASCENDING), ('resolution', ASCENDING) ]
+      cursor = self._client[interval].find( spec=query, sort=sort )
+
+      idx = 0
+      for record in cursor:
+        rval[ record['resolution']*config['resolution'] ] = self._process_row(record['value'])
+
+    return rval
+
+  def _series(self, name, interval, config, buckets):
+    '''
+    Fetch a series of buckets.
+    '''
+    rval = OrderedDict()
+    step = config['step']
+    resolution = config.get('resolution',step)
+    
+    query = { 'interval' : {'$gte':buckets[0], '$lte':buckets[-1]} }
+    sort = [('interval', ASCENDING)]
+    if not config['coarse']:
+      sort.append( ('resolution', ASCENDING) )
+    
+    cursor = self._client[interval].find( spec=query, sort=sort )
+    for record in cursor:
+      i_key = record['interval']*step
+      data = self._process_row( record['value'] )
+      if config['coarse']:
+        rval[ i_key ] = data
+      else:
+        rval.setdefault( i_key, OrderedDict() )
+        rval[ i_key ][ record['resolution']*resolution ] = data
+
+    return rval
   
   def delete(self, name):
     '''
@@ -116,14 +168,35 @@ class MongoBackend(Timeseries):
       num_deleted += self._client[interval].remove( {'name':name} )['n']
     return num_deleted
 
-class MongoSeries(Series):
-  pass
+class MongoSeries(MongoBackend, Series):
+  
+  def _insert_type(self, spec, value):
+    spec['$push'] = {'value':value}
 
-class MongoHistogram(Histogram):
-  pass
+  def _type_no_value(self):
+    return []
 
-class MongoCount(Count):
-  pass
+class MongoHistogram(MongoBackend, Histogram):
+  
+  def _insert_type(self, spec, value):
+    spec['$inc'] = {'value.%s'%(value): 1}
 
-class MongoGauge(Gauge):
-  pass
+  def _type_no_value(self):
+    return {}
+
+class MongoCount(MongoBackend, Count):
+  
+  def _insert_type(self, spec, value):
+    spec['$inc'] = {'value':value}
+
+  def _type_no_value(self):
+    return 0
+
+class MongoGauge(MongoBackend, Gauge):
+  
+  def _insert_type(self, spec, value):
+    spec['$set']['value'] = value
+
+  def _type_no_value(self):
+    # TODO: resolve this disconnect with redis backend
+    return 0
