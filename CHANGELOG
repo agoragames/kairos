@@ -1,7 +1,11 @@
-mongo
+0.2.0
 =====
 
 Implemented support for storing data in mongo.
+
+Transforms on histograms will be called with a dictionary object, not a list,
+to reduce the time and memory footprint required to run calculations on the
+data.
 
 0.1.5
 =====

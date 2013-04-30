@@ -1,8 +1,8 @@
-==========================================
-Kairos - Time series data storage in Redis
-==========================================
+====================================================
+Kairos - Time series data storage in Redis and Mongo
+====================================================
 
-:Version: 0.1.5
+:Version: 0.2.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, time, rrd, gevent
@@ -25,12 +25,37 @@ Requires python 2.7 or later.
 Usage
 =====
 
-Install `redis <http://pypi.python.org/pypi/redis>`_ and kairos. ::
+Kairos supports redis and mongo storage using the same API.
+
+Redis
+-----
+
+::
 
   from kairos import Timeseries
   import redis
 
   client = redis.Redis('localhost', 6379)
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+Mongo
+-----
+
+::
+
+  from kairos import Timeseries
+  import pymongo
+
+  client = pymongo.MongoClient('localhost')
   t = Timeseries(client, type='histogram', read_func=int, intervals={
     'minute':{
       'step':60,            # 60 seconds
@@ -54,8 +79,8 @@ keyword arguments to the constructor are: ::
     gauge - each interval will store the most recent data point
 
   prefix
-    Optional, is a prefix for all keys in this histogram. If supplied
-    and it doesn't end with ":", it will be automatically appended.
+    Optional, redis only, is a prefix for all keys in this timeseries. If 
+    supplied and it doesn't end with ":", it will be automatically appended.
 
   read_func
     Optional, is a function applied to all values read back from the
@@ -152,7 +177,7 @@ Supports the following parameters:
 * **interval** The named interval to read from
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints. Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
 
 Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
 and ``data`` is a data structure corresponding to the type of series, or whatever 
@@ -170,7 +195,7 @@ Almost identical to ``get``, supports the following parameters:
 * **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1.
 * **timestamp** `(optional)` The timestamp of the last step to read, defaults to ``time.time()``; i.e. ``steps`` is the number of steps before ``timestamp``.
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints. Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
 
 Returns a dictionary of ``{ timestamp : { resolution_timestamp: data } }``, where 
 ``timestamp`` and ``resolution_timestamp`` are Unix timestamps
