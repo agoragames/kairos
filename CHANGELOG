@@ -1,3 +1,8 @@
+mongo
+=====
+
+Implemented support for storing data in mongo.
+
 0.1.5
 =====
 

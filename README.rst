@@ -60,7 +60,7 @@ keyword arguments to the constructor are: ::
   read_func
     Optional, is a function applied to all values read back from the
     database. Without it, values will be strings. Must accept a string
-    value and can return anything.
+    value (empty string for no data) and can return anything.
 
   write_func
     Optional, is a function applied to all values when writing. Can be
