@@ -5,7 +5,7 @@ Kairos - Time series data storage in Redis and Mongo
 :Version: 0.2.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
-:Keywords: python, redis, time, rrd, gevent
+:Keywords: python, redis, mongo, time, timeseries, rrd, gevent, statistics
 
 .. contents::
     :local:
