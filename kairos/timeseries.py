@@ -15,6 +15,8 @@ if sys.version_info[:2] > (2, 6):
 else:
     from ordereddict import OrderedDict
 
+BACKENDS = {}
+
 NUMBER_TIME = re.compile('^[\d]+$')
 SIMPLE_TIME = re.compile('^([\d]+)([hdwmy])$')
 
@@ -50,18 +52,28 @@ class Timeseries(object):
   subclass if "type=" keyword argument supplied.
   '''
   
-  def __new__(cls, *args, **kwargs):
+  def __new__(cls, client, **kwargs):
     if cls==Timeseries:
-      ttype = kwargs.pop('type', None)
-      if ttype=='series':
-        return Series.__new__(Series, *args, **kwargs)
-      elif ttype=='histogram':
-        return Histogram.__new__(Histogram, *args, **kwargs)
-      elif ttype=='count':
-        return Count.__new__(Count, *args, **kwargs)
-      elif ttype=='gauge':
-        return Gauge.__new__(Gauge, *args, **kwargs)
-    return object.__new__(cls, *args, **kwargs)
+      # load a backend based on the name of the client module 
+      client_module = client.__module__.split('.')[0]
+      backend = BACKENDS.get( client_module )
+      if backend:
+        return backend( client, **kwargs )
+      else:
+        raise ImportError("Unsupported or unknown client type %s", client_module)
+    return object.__new__(cls, client, **kwargs)
+  #def __new__(cls, *args, **kwargs):
+    #if cls==Timeseries:
+      #ttype = kwargs.pop('type', None)
+      #if ttype=='series':
+        #return Series.__new__(Series, *args, **kwargs)
+      #elif ttype=='histogram':
+        #return Histogram.__new__(Histogram, *args, **kwargs)
+      #elif ttype=='count':
+        #return Count.__new__(Count, *args, **kwargs)
+      #elif ttype=='gauge':
+        #return Gauge.__new__(Gauge, *args, **kwargs)
+    #return object.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
     '''
@@ -124,14 +136,15 @@ class Timeseries(object):
         }
       }
     '''
+    # Process the configuration first so that the backends can use that to 
+    # complete their setup.
     self._client = client
     self._read_func = kwargs.get('read_func',None)
     self._write_func = kwargs.get('write_func',None)
-    self._prefix = kwargs.get('prefix', '')
+    #self._prefix = kwargs.get('prefix', '')
     self._intervals = kwargs.get('intervals', {})
-    if len(self._prefix) and not self._prefix.endswith(':'):
-      self._prefix += ':'
-
+    #if len(self._prefix) and not self._prefix.endswith(':'):
+    #  self._prefix += ':'
 
     # Preprocess the intervals
     for interval,config in self._intervals.iteritems():
@@ -142,6 +155,8 @@ class Timeseries(object):
       resolution = config['resolution'] = _resolve_time( 
         config.get('resolution',config['step']) ) # Optional
 
+      # TODO: Remove the prefix support here since it's redis-only (and if not
+      # then fix the backends accordingly).
       def calc_keys(name, timestamp, s=step, r=resolution, i=interval):
         interval_bucket = int( timestamp/s )
         resolution_bucket = int( timestamp/r )
@@ -156,6 +171,14 @@ class Timeseries(object):
       config['calc_keys'] = calc_keys
       config['expire'] = expire
       config['coarse'] = (resolution==step)
+   
+    # load a backend based on the name of the client module 
+    #client_module = client.__module__.split('.')[0]
+    #backend = BACKENDS.get( client_module )
+    #if backend:
+      #self._backend = backend( client, kwargs )
+    #else:
+      #raise ImportError("Unsupported or unknown client type %s", client_module)
 
   def insert(self, name, value, timestamp=None):
     '''
@@ -177,41 +200,21 @@ class Timeseries(object):
     # TODO: document behavior when time is outside the bounds of step*steps
     # TODO: document how the data is stored.
 
-    pipe = self._client.pipeline(transaction=False)
+    #self._backend.insert( name, value, timestamp, self._intervals )
+    self._insert( name, value, timestamp )
 
-    for interval,config in self._intervals.iteritems():
-      i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
-      
-      if config['coarse']:
-        #getattr(pipe,func)(i_key, *args)
-        self._insert(pipe, i_key, value)
-      else:
-        # Add the resolution bucket to the interval. This allows us to easily
-        # discover the resolution intervals within the larger interval, and
-        # if there is a cap on the number of steps, it will go out of scope
-        # along with the rest of the data
-        pipe.sadd(i_key, r_bucket)
-        #getattr(pipe,func)(r_key, *args)
-        self._insert(pipe, r_key, value)
-
-      expire = config['expire']
-      if expire:
-        pipe.expire(i_key, expire)
-        if not config['coarse']:
-          pipe.expire(r_key, expire)
-
-    pipe.execute()
+  def _insert(self, name, value, timestamp):
+    '''
+    Support for the insert per type of series.
+    '''
+    raise NotImplementedError()
 
   def delete(self, name):
     '''
-    Delete all data in a timeseries.
+    Delete all data in a timeseries. Subclasses are responsible for 
+    implementing this.
     '''
-    keys = self._client.keys('%s%s:*'%(self._prefix,name))
-
-    pipe = self._client.pipeline(transaction=False)
-    for key in keys:
-      pipe.delete( key )
-    pipe.execute()
+    raise NotImplementedError()
 
   def get(self, name, interval, timestamp=None, condensed=False, transform=None):
     '''
@@ -241,35 +244,25 @@ class Timeseries(object):
     config = self._intervals.get(interval)
     if not config:
       raise UnknownInterval(interval)
-    i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
-    
-    rval = OrderedDict()    
-    if config['coarse']:
-      data = self._process_row( self._get(self._client, i_key) )
-      rval[ i_bucket*config['step'] ] = data
-    else:
-      # First fetch all of the resolution buckets for this set.
-      resolution_buckets = sorted(map(int,self._client.smembers(i_key)))
 
-      # Create a pipe and go fetch all the data for each.
-      # TODO: turn off transactions here?
-      pipe = self._client.pipeline(transaction=False)
-      for bucket in resolution_buckets:
-        r_key = '%s:%s'%(i_key, bucket)   # TODO: make this the "resolution_bucket" closure?
-        self._get(pipe, r_key)
-      res = pipe.execute()
+    rval = self._get( name, interval, config, timestamp )
 
-      for idx,data in enumerate(res):
-        data = self._process_row(data)
-        rval[ resolution_buckets[idx]*config['resolution'] ] = data
-    
     # If condensed, collapse the result into a single row
+    # TODO: figure out how to not recalculate this value that subclasses will
+    # also be calculating
     if condensed and not config['coarse']:
+      i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
       rval = { i_bucket*config['step'] : self._condense(rval) }
     if transform:
       for k,v in rval.iteritems():
         rval[k] = self._transform(v, transform)
     return rval
+
+  def _get(self, name, interval, config, timestamp):
+    '''
+    Support for the insert per type of series.
+    '''
+    raise NotImplementedError()
   
   def series(self, name, interval, steps=None, condensed=False, timestamp=None, transform=None):
     '''
@@ -294,54 +287,22 @@ class Timeseries(object):
     config = self._intervals.get(interval)
     if not config:
       raise UnknownInterval(interval)
-    step = config.get('step', 1)
+    step = config['step']
     steps = steps if steps else config.get('steps',1)
-    resolution = config.get('resolution',step)
 
     end_timestamp = timestamp
     end_bucket = int( end_timestamp / step )
     start_bucket = end_bucket - steps +1 # +1 because it's inclusive of end
 
+    interval_buckets = [ start_bucket+s for s in range(steps) ]
+    rval = self._series(name, interval, config, interval_buckets)
+
     # First grab all the intervals that matter
       # TODO: use closures on the config for generating this interval key
-    pipe = self._client.pipeline(transaction=False)
-    rval = OrderedDict()
-    for s in range(steps):
-      interval_bucket = start_bucket + s
-      i_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
-      rval[interval_bucket*step] = OrderedDict()
-
-      if config['coarse']:
-        self._get(pipe, i_key)
-      else:
-        pipe.smembers(i_key)
-    res = pipe.execute()
-
-    # TODO: a memory efficient way to use a single pipeline for this.
-    for idx,data in enumerate(res):
-      # TODO: use closures on the config for generating this interval key
-      interval_bucket = start_bucket + idx
-      interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
-
-      if config['coarse']:
-        data = self._process_row( data )
-        if transform:
-          data = self._transform(data, transform)
-        rval[interval_bucket*step] = data
-      else:
-        pipe = self._client.pipeline(transaction=False)
-        resolution_buckets = sorted(map(int,data))
-        for bucket in resolution_buckets:
-          # TODO: use closures on the config for generating this resolution key
-          resolution_key = '%s:%s'%(interval_key, bucket)
-          self._get(pipe, resolution_key)
-        
-        resolution_res = pipe.execute()
-        for x,data in enumerate(resolution_res):
-          rval[interval_bucket*step][ resolution_buckets[x]*resolution ] = \
-            self._process_row(data)
-
     # If condensed, collapse each interval into a single value
+    if config['coarse'] and transform:
+      for key,data in rval.iteritems():
+        rval[key] = self._transform(data, transform)
     if not config['coarse']:
       if condensed:
         for key in rval.iterkeys():
@@ -369,10 +330,9 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
     
-  def _get(self, handle, key):
+  def _series(self, name, interval, config, buckets):
     '''
-    Subclasses must implement fetching from a key. Should return the result
-    of the call event if handle is a pipeline.
+    Subclasses must implement fetching a series.
     '''
     raise NotImplementedError()
 
@@ -393,6 +353,7 @@ class Timeseries(object):
 
 
 class Series(Timeseries):
+#class Series(object):
   '''
   Simple time series where all data is stored in a list for each interval.
   '''
@@ -418,14 +379,14 @@ class Series(Timeseries):
       data = transform(data)
     return data
 
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    handle.rpush(key, value)
+  #def _insert(self, handle, key, value):
+    #'''
+    #Insert the value into the series.
+    #'''
+    #handle.rpush(key, value)
 
-  def _get(self, handle, key):
-    return handle.lrange(key, 0, -1)
+  #def _get(self, handle, key):
+    #return handle.lrange(key, 0, -1)
 
   def _process_row(self, data):
     if self._read_func:
@@ -441,6 +402,7 @@ class Series(Timeseries):
     return []
 
 class Histogram(Timeseries):
+#class Histogram(object):
   '''
   Data for each interval is stored in a hash, counting occurrances of the
   same value within an interval. It is up to the user to determine the precision
@@ -469,15 +431,6 @@ class Histogram(Timeseries):
       data = transform(data)
     return data
 
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    handle.hincrby(key, value, 1)
-
-  def _get(self, handle, key):
-    return handle.hgetall(key)
-
   def _process_row(self, data):
     rval = {}
     for value,count in data.iteritems():
@@ -496,6 +449,7 @@ class Histogram(Timeseries):
     return rval
 
 class Count(Timeseries):
+#class Count(object):
   '''
   Time series that simply increments within each interval.
   '''
@@ -512,19 +466,6 @@ class Count(Timeseries):
   def insert(self, name, value=1, timestamp=None):
     super(Count,self).insert(name, value, timestamp)
 
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    if value!=0:
-      if isinstance(value,float):
-        handle.incrbyfloat(key, value)
-      else:
-        handle.incr(key,value)
-  
-  def _get(self, handle, key):
-    return handle.get(key)
-
   def _process_row(self, data):
     return int(data) if data else 0
 
@@ -537,6 +478,7 @@ class Count(Timeseries):
     return 0
 
 class Gauge(Timeseries):
+#class Gauge(object):
   '''
   Time series that stores the last value.
   '''
@@ -549,17 +491,10 @@ class Gauge(Timeseries):
     if callable(transform):
       data = transform(data)
     return data
-  
-  def _insert(self, handle, key, value):
-    '''
-    Insert the value into the series.
-    '''
-    handle.set(key, value)
-  
-  def _get(self, handle, key):
-    return handle.get(key)
 
   def _process_row(self, data):
+    if self._read_func:
+      return self._read_func(data or '')
     return data
 
   def _condense(self, data):
@@ -569,3 +504,15 @@ class Gauge(Timeseries):
     if data:
       return data.values()
     return []
+
+try:
+  from redis_backend import RedisBackend
+  BACKENDS['redis'] = RedisBackend
+except ImportError as e:
+  print 'Redis backend not loaded,', e
+
+try:
+  from mongo_backend import MongoBackend
+  BACKENDS['pymongo'] = MongoBackend
+except ImportError as e:
+  print 'Mongo backend not loaded,', e
