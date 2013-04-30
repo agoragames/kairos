@@ -62,18 +62,6 @@ class Timeseries(object):
       else:
         raise ImportError("Unsupported or unknown client type %s", client_module)
     return object.__new__(cls, client, **kwargs)
-  #def __new__(cls, *args, **kwargs):
-    #if cls==Timeseries:
-      #ttype = kwargs.pop('type', None)
-      #if ttype=='series':
-        #return Series.__new__(Series, *args, **kwargs)
-      #elif ttype=='histogram':
-        #return Histogram.__new__(Histogram, *args, **kwargs)
-      #elif ttype=='count':
-        #return Count.__new__(Count, *args, **kwargs)
-      #elif ttype=='gauge':
-        #return Gauge.__new__(Gauge, *args, **kwargs)
-    #return object.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
     '''
@@ -138,13 +126,11 @@ class Timeseries(object):
     '''
     # Process the configuration first so that the backends can use that to 
     # complete their setup.
+    # Prefix is determined by the backend implementation.
     self._client = client
     self._read_func = kwargs.get('read_func',None)
     self._write_func = kwargs.get('write_func',None)
-    #self._prefix = kwargs.get('prefix', '')
     self._intervals = kwargs.get('intervals', {})
-    #if len(self._prefix) and not self._prefix.endswith(':'):
-    #  self._prefix += ':'
 
     # Preprocess the intervals
     for interval,config in self._intervals.iteritems():
@@ -171,14 +157,6 @@ class Timeseries(object):
       config['calc_keys'] = calc_keys
       config['expire'] = expire
       config['coarse'] = (resolution==step)
-   
-    # load a backend based on the name of the client module 
-    #client_module = client.__module__.split('.')[0]
-    #backend = BACKENDS.get( client_module )
-    #if backend:
-      #self._backend = backend( client, kwargs )
-    #else:
-      #raise ImportError("Unsupported or unknown client type %s", client_module)
 
   def insert(self, name, value, timestamp=None):
     '''
@@ -200,7 +178,6 @@ class Timeseries(object):
     # TODO: document behavior when time is outside the bounds of step*steps
     # TODO: document how the data is stored.
 
-    #self._backend.insert( name, value, timestamp, self._intervals )
     self._insert( name, value, timestamp )
 
   def _insert(self, name, value, timestamp):
@@ -297,9 +274,6 @@ class Timeseries(object):
     interval_buckets = [ start_bucket+s for s in range(steps) ]
     rval = self._series(name, interval, config, interval_buckets)
 
-    # First grab all the intervals that matter
-      # TODO: use closures on the config for generating this interval key
-    # If condensed, collapse each interval into a single value
     if config['coarse'] and transform:
       for key,data in rval.iteritems():
         rval[key] = self._transform(data, transform)
@@ -353,7 +327,6 @@ class Timeseries(object):
 
 
 class Series(Timeseries):
-#class Series(object):
   '''
   Simple time series where all data is stored in a list for each interval.
   '''
@@ -379,15 +352,6 @@ class Series(Timeseries):
       data = transform(data)
     return data
 
-  #def _insert(self, handle, key, value):
-    #'''
-    #Insert the value into the series.
-    #'''
-    #handle.rpush(key, value)
-
-  #def _get(self, handle, key):
-    #return handle.lrange(key, 0, -1)
-
   def _process_row(self, data):
     if self._read_func:
       return map(self._read_func, data)
@@ -402,7 +366,6 @@ class Series(Timeseries):
     return []
 
 class Histogram(Timeseries):
-#class Histogram(object):
   '''
   Data for each interval is stored in a hash, counting occurrances of the
   same value within an interval. It is up to the user to determine the precision
@@ -427,7 +390,6 @@ class Histogram(Timeseries):
     elif transform=='sum':
       data = sum( k*v for k,v in data.iteritems() )
     elif callable(transform):
-      data = reduce( operator.add, ([k]*v for k,v in sorted(data.iteritems())) )
       data = transform(data)
     return data
 
@@ -449,7 +411,6 @@ class Histogram(Timeseries):
     return rval
 
 class Count(Timeseries):
-#class Count(object):
   '''
   Time series that simply increments within each interval.
   '''
@@ -478,7 +439,6 @@ class Count(Timeseries):
     return 0
 
 class Gauge(Timeseries):
-#class Gauge(object):
   '''
   Time series that stores the last value.
   '''
@@ -505,6 +465,7 @@ class Gauge(Timeseries):
       return data.values()
     return []
 
+# Load the backends after all the timeseries had been defined.
 try:
   from redis_backend import RedisBackend
   BACKENDS['redis'] = RedisBackend
