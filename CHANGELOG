@@ -1,3 +1,9 @@
+0.2.1
+=====
+
+Added ability to pass in a list of transforms, to support multiple calculations
+per row of the data set.
+
 0.2.0
 =====
 

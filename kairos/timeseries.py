@@ -206,7 +206,11 @@ class Timeseries(object):
     If transform is defined, will utilize one of `[mean, count, min, max, sum]`
     to process each row of data returned. If the transform is a callable, will
     pass an array of data to the function. Note that the transform will be run
-    after the data is condensed.
+    after the data is condensed. If the transform is a list, then each row will
+    return a hash of the form { transform_name_or_func : transformed_data }. 
+    If the transform is a hash, then it should be of the form 
+    { transform_name : transform_func } and will return the same structure as
+    a list argument.
 
     Raises UnknownInterval if `interval` is not one of the configured 
     intervals.
@@ -232,7 +236,7 @@ class Timeseries(object):
       rval = { i_bucket*config['step'] : self._condense(rval) }
     if transform:
       for k,v in rval.iteritems():
-        rval[k] = self._transform(v, transform)
+        rval[k] = self._process_transform(v, transform)
     return rval
 
   def _get(self, name, interval, config, timestamp):
@@ -276,20 +280,30 @@ class Timeseries(object):
 
     if config['coarse'] and transform:
       for key,data in rval.iteritems():
-        rval[key] = self._transform(data, transform)
+        rval[key] = self._process_transform(data, transform)
     if not config['coarse']:
       if condensed:
         for key in rval.iterkeys():
           data = self._condense( rval[key] )
           if transform:
-            data = self._transform(data, transform)
+            data = self._process_transform(data, transform)
           rval[key] = data
       elif transform:
         for interval,resolutions in rval.iteritems():
           for key in resolutions.iterkeys():
-            resolutions[key] = self._transform(resolutions[key], transform)
+            resolutions[key] = self._process_transform(resolutions[key], transform)
     
     return rval
+
+  def _process_transform(self, data, transform):
+    '''
+    Process transforms on the data.
+    '''
+    if isinstance(transform, (list,tuple,set)):
+      return { t : self._transform(data,t) for t in transform }
+    elif isinstance(transform, dict):
+      return { tn : self._transform(data,tf) for tn,tf in transform.iteritems() }
+    return self._transform(data, transform)
 
   def _transform(self, data, transform):
     '''
