@@ -15,12 +15,13 @@ Kairos - Time series data storage in Redis and Mongo
 Overview
 ========
 
-Kairos provides time series storage using a Redis backend. Kairos is intended 
-to replace RRD in situations where the scale of Redis is required, with as
-few dependencies on other packages as possible. It should work with 
+Kairos provides time series storage using Redis or Mongo backends. Kairos is 
+intended to replace RRD and Whisper in situations where the scale and 
+flexibility of Redis or Mongo is required. It works with
 `gevent <http://www.gevent.org/>`_ out of the box.
 
-Requires python 2.7 or later.
+Recommended for python 2.7 and later, it can work with previous versions if you
+install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
 
 Usage
 =====
@@ -249,9 +250,7 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
 Future
 ======
 
-* Complete functional tests
 * Redis optimizations
-* Mongo backend
 * Bloom filters
 * "Native" transforms that leverage data store features (e.g. "length")
 
