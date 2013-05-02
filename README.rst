@@ -80,34 +80,35 @@ keyword arguments to the constructor are: ::
     gauge - each interval will store the most recent data point
 
   prefix
-    Optional, redis only, is a prefix for all keys in this timeseries. If 
+    Optional, Redis only, is a prefix for all keys in this timeseries. If 
     supplied and it doesn't end with ":", it will be automatically appended.
 
   read_func
     Optional, is a function applied to all values read back from the
-    database. Without it, values will be strings. Must accept a string
-    value (empty string for no data) and can return anything.
+    database. Without it, values will be strings for Redis, whatever 
+    `write_func` defined for Mongo. Must accept a string value for Redis
+    (empty string for no data) and can return anything.
 
   write_func
     Optional, is a function applied to all values when writing. Can be
     used for histogram resolution, converting an object into an id, etc.
     Must accept whatever can be inserted into a timeseries and return an
-    object which can be cast to a string.
+    object which can be saved according to the rules of Redis or Mongo.
 
   intervals
     Required, a dictionary of interval configurations in the form of: 
 
     {
-      # interval name, used in redis keys and should conform to best practices
-      # and not include ":"
+      # interval name, used in Redis and Mongo keys and should conform to best 
+      # practices according to the backend type.
       minute: {
         
         # Required. The number of seconds that the interval will cover
         step: 60,
         
         # Optional. The maximum number of intervals to maintain. If supplied,
-        # will use redis expiration to delete old intervals, else intervals
-        # exist in perpetuity.
+        # will use Redis and Mongo expiration to delete old intervals, else 
+        # intervals exist in perpetuity.
         steps: 240,
         
         # Optional. Defines the resolution of the data, i.e. the number of 
@@ -161,7 +162,6 @@ the corresponding series type.
 * **histogram** dictionary (map)
 * **count** integer or float
 
-
 Reading Data
 ------------
 
@@ -208,8 +208,8 @@ will be of the form ``{ timestamp : data }``.
 Dragons!
 --------
 
-Kairos achieves its efficiency by using Redis' TTLs and data structures in 
-combination with a key naming scheme that generates consistent keys based on
+Kairos achieves its efficiency by using Redis or Mongo TTLs and data structures
+in combination with a key naming scheme that generates consistent keys based on
 any timestamp relative to epoch. However, just like 
 `RRDtool <http://oss.oetiker.ch/rrdtool/>`_, changing any attribute of the
 timeseries means that new data will be stored differently than old data. For
