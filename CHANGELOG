@@ -1,3 +1,9 @@
+0.2.2
+=====
+
+Fixed bug in fetching mongo series, which was missing the stat name in the
+query.
+
 0.2.1
 =====
 

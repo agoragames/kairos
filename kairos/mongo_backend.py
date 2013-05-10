@@ -138,7 +138,7 @@ class MongoBackend(Timeseries):
     step = config['step']
     resolution = config.get('resolution',step)
     
-    query = { 'interval' : {'$gte':buckets[0], '$lte':buckets[-1]} }
+    query = { 'name':name, 'interval':{'$gte':buckets[0], '$lte':buckets[-1]} }
     sort = [('interval', ASCENDING)]
     if not config['coarse']:
       sort.append( ('resolution', ASCENDING) )
