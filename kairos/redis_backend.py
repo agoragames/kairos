@@ -31,12 +31,24 @@ class RedisBackend(Timeseries):
     return Timeseries.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
-    super(RedisBackend,self).__init__( client, **kwargs )
-
     # prefix is redis-only feature (TODO: yes or no?)
     self._prefix = kwargs.get('prefix', '')
     if len(self._prefix) and not self._prefix.endswith(':'):
       self._prefix += ':'
+
+    super(RedisBackend,self).__init__( client, **kwargs )
+
+  def _calc_keys(self, config, name, timestamp):
+    '''
+    Calculate keys given a stat name and timestamp.
+    '''
+    i_bucket = config['i_calc'].to_bucket( timestamp )
+    r_bucket = config['r_calc'].to_bucket( timestamp )
+
+    i_key = '%s%s:%s:%s'%(self._prefix, name, config['interval'], i_bucket)
+    r_key = '%s:%s'%(i_key, r_bucket)
+
+    return i_bucket, r_bucket, i_key, r_key
 
   def _insert(self, name, value, timestamp):
     '''
@@ -46,7 +58,7 @@ class RedisBackend(Timeseries):
     # TODO: apply the prefix if we're using one.
 
     for interval,config in self._intervals.iteritems():
-      i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
+      i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
       
       if config['coarse']:
         self._type_insert(pipe, i_key, value)
@@ -85,7 +97,7 @@ class RedisBackend(Timeseries):
     '''
     Fetch a single interval from redis.
     '''
-    i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
+    i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
     
     rval = OrderedDict()    
     if config['coarse']:

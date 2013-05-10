@@ -40,11 +40,9 @@ class MongoBackend(Timeseries):
     if isinstance(client, pymongo.MongoClient):
       client = client['kairos']
     elif not isinstance(client, pymongo.database.Database):
-      raise ValueError('Mongo handle must be MongoClient or database instance')
-    super(MongoBackend,self).__init__(client, **kwargs)
+      raise TypeError('Mongo handle must be MongoClient or database instance')
 
-    # HACK until calckeys is abstracted better
-    self._prefix = ''
+    super(MongoBackend,self).__init__(client, **kwargs)
     
     # Define the indices for lookups and TTLs
     for interval,config in self._intervals.iteritems():
@@ -88,11 +86,9 @@ class MongoBackend(Timeseries):
     # make the results situation-dependent.
     # TODO: confirm that this is in fact using the indices correctly.
     for interval,config in self._intervals.iteritems():
-      i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
-
-      insert = {'name':name, 'interval':i_bucket}
+      insert = {'name':name, 'interval':config['i_calc'].to_bucket(timestamp)}
       if not config['coarse']:
-        insert['resolution'] = r_bucket
+        insert['resolution'] = config['r_calc'].to_bucket(timestamp)
       query = insert.copy()
 
       if config['expire']:
@@ -109,7 +105,7 @@ class MongoBackend(Timeseries):
     '''
     Get the interval.
     '''
-    i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
+    i_bucket = config['i_calc'].to_bucket(timestamp)
 
     rval = OrderedDict()
     query = {'name':name, 'interval':i_bucket}
@@ -117,16 +113,17 @@ class MongoBackend(Timeseries):
       record = self._client[interval].find_one( query )
       if record:
         data = self._process_row( record['value'] )
-        rval[ i_bucket*config['step'] ] = data
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = data
       else:
-        rval[ i_bucket*config['step'] ] = self._type_no_value()
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
     else:
       sort = [('interval', ASCENDING), ('resolution', ASCENDING) ]
       cursor = self._client[interval].find( spec=query, sort=sort )
 
       idx = 0
       for record in cursor:
-        rval[ record['resolution']*config['resolution'] ] = self._process_row(record['value'])
+        rval[ config['r_calc'].from_bucket(record['resolution']) ] = \
+          self._process_row(record['value'])
 
     return rval
 
@@ -145,13 +142,13 @@ class MongoBackend(Timeseries):
     
     cursor = self._client[interval].find( spec=query, sort=sort )
     for record in cursor:
-      i_key = record['interval']*step
+      i_key = config['i_calc'].from_bucket(record['interval'])
       data = self._process_row( record['value'] )
       if config['coarse']:
         rval[ i_key ] = data
       else:
         rval.setdefault( i_key, OrderedDict() )
-        rval[ i_key ][ record['resolution']*resolution ] = data
+        rval[ i_key ][ config['r_calc'].from_bucket(record['resolution']) ] = data
 
     return rval
   

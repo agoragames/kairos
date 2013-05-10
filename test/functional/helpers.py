@@ -12,6 +12,25 @@ from kairos.timeseries import *
 def _time(t):
   return (500000*3600)+t
 
+class GregorianTest(Chai):
+  '''Test that Gregorian data is working right.'''
+  def setUp(self):
+    super(SeriesTest,self).setUp()
+
+    self.series = Timeseries(self.client, type='series', prefix='kairos',
+      read_func=int, #write_func=str, 
+      intervals={
+        'daily' : {
+          'step' : 'daily',
+          'steps' : 5,
+        },
+        'weekly' : {
+          'step' : 'weekly',
+          'resolution' : 60,
+        }
+      } )
+    self.series.delete('test')
+
 class SeriesTest(Chai):
 
   def setUp(self):
@@ -87,17 +106,17 @@ class SeriesTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
     assert_equals( list(range(1,60)), interval[_time(0)] )
     assert_equals( list(range(240,300)), interval[_time(240)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time,[180,240]), interval.keys() )
     assert_equals( list(range(240,300)), interval[_time(240)] )
 
     # with transforms
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250), transform=['min','count'] )
+    interval = self.series.series( 'test', 'minute', end=_time(250), transform=['min','count'] )
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
     assert_equals( {'min':1, 'count':59}, interval[_time(0)] )
     assert_equals( {'min':240, 'count':60}, interval[_time(240)] )
@@ -105,30 +124,30 @@ class SeriesTest(Chai):
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( list(range(1,60)), interval[_time(0)][_time(0)] )
 
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250), transform=['count','max'] )
+    interval = self.series.series( 'test', 'hour', end=_time(250), transform=['count','max'] )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( {'max':59, 'count':59}, interval[_time(0)][_time(0)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, len(interval[_time(3600)]) )
     assert_equals( list(range(3600,7200)), interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 3599, len(interval[_time(0)]) )
     assert_equals( 3600, len(interval[_time(3600)]) )
     assert_equals( list(range(3600,7200)), interval[_time(3600)] )
     
     # with transforms
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), transform=['min','max'] )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), transform=['min','max'] )
     assert_equals( 1, len(interval) )
     assert_equals( {'min':3600, 'max':7199}, interval[_time(3600)] )
 
@@ -192,7 +211,7 @@ class HistogramTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( list(range(0,30)), sorted(interval[_time(0)].keys()) )
     assert_equals( 1, interval[_time(0)][0] )
@@ -202,25 +221,25 @@ class HistogramTest(Chai):
     for k in xrange(120,150):
       assert_equals(2, interval[_time(240)][k])
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( list(range(120,150)), sorted(interval[_time(240)].keys()) )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( list(range(0,30)), sorted(interval[_time(0)][_time(0)].keys()) )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 1800, len(interval[_time(3600)]) )
     assert_equals( list(range(1800,3600)), sorted(interval[_time(3600)].keys()) )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 1800, len(interval[_time(0)]) )
     assert_equals( 1800, len(interval[_time(3600)]) )
@@ -286,30 +305,30 @@ class CountTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( 59, interval[_time(0)] )
     assert_equals( 60, interval[_time(60)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 60, interval[_time(240)] )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( 59, interval[_time(0)][_time(0)] )
     assert_equals( 60, interval[_time(0)][_time(60)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 3599, interval[_time(0)] )
     assert_equals( 3600, interval[_time(3600)] )
@@ -374,30 +393,30 @@ class GaugeTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( 59, interval[_time(0)] )
     assert_equals( 119, interval[_time(60)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 299, interval[_time(240)] )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( 59, interval[_time(0)][_time(0)] )
     assert_equals( 119, interval[_time(0)][_time(60)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( range(3659,7200,60), interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( range(59,3600,60), interval[_time(0)] )
     assert_equals( range(3659,7200,60), interval[_time(3600)] )
