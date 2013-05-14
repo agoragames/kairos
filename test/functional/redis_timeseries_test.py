@@ -32,3 +32,9 @@ class RedisGaugeTest(helpers.GaugeTest):
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisGaugeTest,self).setUp()
+
+class RedisGregorianTest(helpers.GregorianTest):
+
+  def setUp(self):
+    self.client = redis.Redis('localhost')
+    super(RedisGregorianTest,self).setUp()

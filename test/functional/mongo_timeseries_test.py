@@ -32,3 +32,9 @@ class MongoGaugeTest(helpers.GaugeTest):
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoGaugeTest,self).setUp()
+
+class MongoGregorianTest(helpers.GregorianTest):
+
+  def setUp(self):
+    self.client = MongoClient('localhost')
+    super(MongoGregorianTest,self).setUp()

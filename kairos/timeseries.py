@@ -31,7 +31,7 @@ SIMPLE_TIMES = {
   'y' : 60*60*24*365, # year(-ish)
 }
 
-GREGORIAN_TIMES = set(['daily', 'monthly', 'yearly'])
+GREGORIAN_TIMES = set(['daily', 'weekly', 'monthly', 'yearly'])
 
 def _resolve_time(value):
   '''
@@ -103,7 +103,7 @@ class GregorianTime(object):
   '''
   Functions associated with gregorian time intervals.
   '''
-  # NOTE: Not supporting weekly because of the following bug:
+  # NOTE: strptime weekly has the following bug:
   # In [10]: datetime.strptime('197001', '%Y%U')
   # Out[10]: datetime.datetime(1970, 1, 1, 0, 0)
   # In [11]: datetime.strptime('197002', '%Y%U')
@@ -111,7 +111,7 @@ class GregorianTime(object):
 
   FORMATS = {
     'daily'   : '%Y%m%d',
-    #'weekly'  : '%Y%U',
+    'weekly'  : '%Y%U',
     'monthly' : '%Y%m',
     'yearly'  : '%Y'
   }
@@ -128,8 +128,8 @@ class GregorianTime(object):
     if steps!=0:
       if self._step == 'daily':
         dt = dt + timedelta(days=steps)
-      #elif self._step == 'weekly':
-        #dt = dt + timedelta(weeks=steps)
+      elif self._step == 'weekly':
+        dt = dt + timedelta(weeks=steps)
       elif self._step == 'monthly':
         dt = dt + MonthDelta(steps)
       elif self._step == 'yearly':
@@ -143,8 +143,12 @@ class GregorianTime(object):
     '''
     Calculate the timestamp given a bucket.
     '''
-    normal = datetime.strptime(bucket, self.FORMATS[self._step])
-    return time.mktime( normal.timetuple() )
+    if self._step == 'weekly':
+      year, week = bucket[:4], bucket[4:]
+      normal = datetime(year=int(year), month=1, day=1) + timedelta(weeks=int(week))
+    else:
+      normal = datetime.strptime(bucket, self.FORMATS[self._step])
+    return long(time.mktime( normal.timetuple() ))
 
   def buckets(self, start, end):
     '''
@@ -280,8 +284,15 @@ class Timeseries(object):
       resolution = config['resolution'] = _resolve_time( 
         config.get('resolution',config['step']) ) # Optional
 
-      interval_calc = RelativeTime(step)
-      resolution_calc = RelativeTime(resolution)
+      if step in GREGORIAN_TIMES:
+        interval_calc = GregorianTime(step)
+      else:
+        interval_calc = RelativeTime(step)
+
+      if resolution in GREGORIAN_TIMES:
+        resolution_calc = GregorianTime(resolution)
+      else:
+        resolution_calc = RelativeTime(resolution)
       
       expire = False
       if steps: expire = step*steps
@@ -398,11 +409,12 @@ class Timeseries(object):
       raise UnknownInterval(interval)
     steps = steps if steps else config.get('steps',1)
 
-    # Fugly range determination, all to get ourselves a start and end timestamp
+    # Fugly range determination, all to get ourselves a start and end 
+    # timestamp. Adjust steps argument to include the anchoring date.
     if not end:
       if start:
         start_bucket = config['i_calc'].to_bucket( start )
-        end_bucket = config['i_calc'].to_bucket( start, steps )
+        end_bucket = config['i_calc'].to_bucket( start, steps-1 )
       else:
         end = time.time()
         end_bucket = config['i_calc'].to_bucket( end )

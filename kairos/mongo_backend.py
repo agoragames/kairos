@@ -142,6 +142,11 @@ class MongoBackend(Timeseries):
     
     cursor = self._client[interval].find( spec=query, sort=sort )
     for record in cursor:
+      while buckets and buckets[0] < record['interval']:
+        rval[ config['i_calc'].from_bucket(buckets.pop(0)) ] = self._type_no_value()
+      if buckets and buckets[0]==record['interval']:
+        buckets.pop(0)
+
       i_key = config['i_calc'].from_bucket(record['interval'])
       data = self._process_row( record['value'] )
       if config['coarse']:

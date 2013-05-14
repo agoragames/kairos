@@ -102,7 +102,7 @@ class RedisBackend(Timeseries):
     rval = OrderedDict()    
     if config['coarse']:
       data = self._process_row( self._type_get(self._client, i_key) )
-      rval[ i_bucket*config['step'] ] = data
+      rval[ config['i_calc'].from_bucket(i_bucket) ] = data
     else:
       # First fetch all of the resolution buckets for this set.
       resolution_buckets = sorted(map(int,self._client.smembers(i_key)))
@@ -117,7 +117,7 @@ class RedisBackend(Timeseries):
 
       for idx,data in enumerate(res):
         data = self._process_row(data)
-        rval[ resolution_buckets[idx]*config['resolution'] ] = data
+        rval[ config['r_calc'].from_bucket(resolution_buckets[idx]) ] = data
 
     return rval
 
@@ -147,9 +147,9 @@ class RedisBackend(Timeseries):
 
       if config['coarse']:
         data = self._process_row( data )
-        rval[interval_bucket*step] = data
+        rval[ config['i_calc'].from_bucket(interval_bucket) ] = data
       else:
-        rval[interval_bucket*step] = OrderedDict()
+        rval[ config['i_calc'].from_bucket(interval_bucket) ] = OrderedDict()
         pipe = self._client.pipeline(transaction=False)
         resolution_buckets = sorted(map(int,data))
         for bucket in resolution_buckets:
@@ -159,8 +159,9 @@ class RedisBackend(Timeseries):
         
         resolution_res = pipe.execute()
         for x,data in enumerate(resolution_res):
-          rval[interval_bucket*step][ resolution_buckets[x]*resolution ] = \
-            self._process_row(data)
+          i_t = config['i_calc'].from_bucket(interval_bucket)
+          r_t = config['r_calc'].from_bucket(resolution_buckets[x])
+          rval[ i_t ][ r_t ] = self._process_row(data)
 
     return rval
 
