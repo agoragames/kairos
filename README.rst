@@ -103,7 +103,8 @@ keyword arguments to the constructor are: ::
       # practices according to the backend type.
       minute: {
         
-        # Required. The number of seconds that the interval will cover
+        # Required. The number of seconds that the interval will cover,
+        # or a supported Gregorian interval.
         step: 60,
         
         # Optional. The maximum number of intervals to maintain. If supplied,
@@ -113,9 +114,9 @@ keyword arguments to the constructor are: ::
         
         # Optional. Defines the resolution of the data, i.e. the number of 
         # seconds in which data is assumed to have occurred "at the same time".
-        # So if you're tracking a month long time series, you may only need 
+        # So if you're tracking a month-long time series, you may only need 
         # resolution down to the day, or resolution=86400. Defaults to same
-        # value as "step".
+        # value as "step". Can also be a Gregorian interval.
         resolution: 60,
       }
     }
@@ -124,6 +125,15 @@ In addition to specifying ``step`` and ``resolution`` in terms of seconds,
 kairos also supports a simplified format for larger time intervals. For
 hours (h), days (d), weeks (w), months (m) and years (y), you can use 
 the format ``30d`` to represent 30 days, for example.
+
+As of ``0.3.0``, kairos also supports the Gregorian calendar for ``step``
+and ``resolution``. Either or both parameters can use the terms ``[daily,
+weekly, monthly, yearly]`` to describe an interval. You can also mix these
+terms with the time periods defined in terms of seconds (e.g. ``daily`` in 
+``1h`` resolutions). The expiration time for Gregorian dates is still defined
+in terms of seconds and may not match the  varying month lengths, leap years, 
+etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
+keys are so may be easier to use in raw form or any integrated tools.
 
 Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
