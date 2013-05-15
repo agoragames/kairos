@@ -2,7 +2,7 @@
 Implementation of functional tests independent of backend
 '''
 import time
-import datetime
+from datetime import *
 
 from chai import Chai
 
@@ -11,6 +11,102 @@ from kairos.timeseries import *
 # mongo expiry requires absolute time vs. redis ttls, so adjust it in whole hours
 def _time(t):
   return (500000*3600)+t
+
+class GregorianTest(Chai):
+  '''Test that Gregorian data is working right.'''
+  def setUp(self):
+    super(GregorianTest,self).setUp()
+
+    self.series = Timeseries(self.client, type='series', prefix='kairos',
+      read_func=int, #write_func=str, 
+      intervals={
+        'daily' : {
+          'step' : 'daily',
+          'steps' : 5,
+        },
+        'weekly' : {
+          'step' : 'weekly',
+          'resolution' : 60,
+        },
+        'monthly' : {
+          'step' : 'monthly',
+        },
+        'yearly' : {
+          'step' : 'yearly',
+        }
+      } )
+    self.series.delete('test')
+
+  def test_get(self):
+    for day in range(0,365):
+      d = datetime(year=2038, month=1, day=1) + timedelta(days=day)
+      t = time.mktime( d.timetuple() )
+      self.series.insert( 'test', 1, t )
+    feb1 = long( time.mktime( datetime(year=2038,month=2,day=1).timetuple() ) )
+
+    data = self.series.get('test', 'daily', timestamp=feb1)
+    assert_equals( [1], data[feb1] )
+
+    data = self.series.get('test', 'weekly', timestamp=feb1)
+    assert_equals( 7, len(data) )
+    assert_equals( [1], data.values()[0] )
+
+    data = self.series.get('test', 'weekly', timestamp=feb1, condensed=True)
+    assert_equals( 1, len(data) )
+    assert_equals( 7*[1], data.values()[0] )
+
+    data = self.series.get('test', 'monthly', timestamp=feb1)
+    assert_equals( 28, len(data[feb1]) )
+
+    data = self.series.get('test', 'yearly', timestamp=feb1)
+    assert_equals( 365, len(data.items()[0][1]) )
+
+  def test_series(self):
+    for day in range(0,2*365):
+      d = datetime(year=2038, month=1, day=1) + timedelta(days=day)
+      t = time.mktime( d.timetuple() )
+      self.series.insert( 'test', 1, t )
+
+    start = long( time.mktime( datetime(year=2038,month=1,day=1).timetuple() ) )
+    end = long( time.mktime( datetime(year=2038,month=12,day=31).timetuple() ) )
+
+    data = self.series.series('test', 'daily', start=start, end=end)
+    assert_equals( 365, len(data) )
+    assert_equals( [1], data.values()[0] )
+    assert_equals( [1], data.values()[-1] )
+
+    data = self.series.series('test', 'weekly', start=start, end=end)
+    assert_equals( 53, len(data) )
+    assert_equals( 2, len(data.values()[0]) )
+    assert_equals( 7, len(data.values()[1]) )
+    assert_equals( 6, len(data.values()[-1]) )
+    assert_equals( [1], data.values()[0].values()[0] )
+    assert_equals( [1], data.values()[-1].values()[0] )
+
+    data = self.series.series('test', 'weekly', start=start, end=end, condensed=True)
+    assert_equals( 53, len(data) )
+    assert_equals( 2*[1], data.values()[0] )
+    assert_equals( 7*[1], data.values()[1] )
+    assert_equals( 6*[1], data.values()[-1] )
+    
+    data = self.series.series('test', 'monthly', start=start, end=end)
+    assert_equals( 12, len(data) )
+    assert_equals( 31, len(data.values()[0]) ) # jan
+    assert_equals( 28, len(data.values()[1]) ) # feb
+    assert_equals( 30, len(data.values()[3]) ) # april
+    
+    data = self.series.series('test', 'yearly', start=start, end=end)
+    assert_equals( 1, len(data) )
+    assert_equals( 365, len(data.values()[0]) )
+    
+    data = self.series.series('test', 'yearly', start=start, steps=2)
+    assert_equals( 2, len(data) )
+    assert_equals( 365, len(data.values()[0]) )
+    
+    data = self.series.series('test', 'yearly', end=end, steps=2)
+    assert_equals( 2, len(data) )
+    assert_equals( [], data.values()[0] )
+    assert_equals( 365, len(data.values()[1]) )
 
 class SeriesTest(Chai):
 
@@ -87,17 +183,17 @@ class SeriesTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
     assert_equals( list(range(1,60)), interval[_time(0)] )
     assert_equals( list(range(240,300)), interval[_time(240)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time,[180,240]), interval.keys() )
     assert_equals( list(range(240,300)), interval[_time(240)] )
 
     # with transforms
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250), transform=['min','count'] )
+    interval = self.series.series( 'test', 'minute', end=_time(250), transform=['min','count'] )
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
     assert_equals( {'min':1, 'count':59}, interval[_time(0)] )
     assert_equals( {'min':240, 'count':60}, interval[_time(240)] )
@@ -105,30 +201,30 @@ class SeriesTest(Chai):
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( list(range(1,60)), interval[_time(0)][_time(0)] )
 
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250), transform=['count','max'] )
+    interval = self.series.series( 'test', 'hour', end=_time(250), transform=['count','max'] )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( {'max':59, 'count':59}, interval[_time(0)][_time(0)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, len(interval[_time(3600)]) )
     assert_equals( list(range(3600,7200)), interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 3599, len(interval[_time(0)]) )
     assert_equals( 3600, len(interval[_time(3600)]) )
     assert_equals( list(range(3600,7200)), interval[_time(3600)] )
     
     # with transforms
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), transform=['min','max'] )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), transform=['min','max'] )
     assert_equals( 1, len(interval) )
     assert_equals( {'min':3600, 'max':7199}, interval[_time(3600)] )
 
@@ -192,7 +288,7 @@ class HistogramTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( list(range(0,30)), sorted(interval[_time(0)].keys()) )
     assert_equals( 1, interval[_time(0)][0] )
@@ -202,25 +298,25 @@ class HistogramTest(Chai):
     for k in xrange(120,150):
       assert_equals(2, interval[_time(240)][k])
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( list(range(120,150)), sorted(interval[_time(240)].keys()) )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( list(range(0,30)), sorted(interval[_time(0)][_time(0)].keys()) )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 1800, len(interval[_time(3600)]) )
     assert_equals( list(range(1800,3600)), sorted(interval[_time(3600)].keys()) )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 1800, len(interval[_time(0)]) )
     assert_equals( 1800, len(interval[_time(3600)]) )
@@ -286,30 +382,30 @@ class CountTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( 59, interval[_time(0)] )
     assert_equals( 60, interval[_time(60)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 60, interval[_time(240)] )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( 59, interval[_time(0)][_time(0)] )
     assert_equals( 60, interval[_time(0)][_time(60)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 3599, interval[_time(0)] )
     assert_equals( 3600, interval[_time(3600)] )
@@ -374,30 +470,30 @@ class GaugeTest(Chai):
     ###
     ### no resolution, condensed has no impact
     ###
-    interval = self.series.series( 'test', 'minute', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( 59, interval[_time(0)] )
     assert_equals( 119, interval[_time(60)] )
     
-    interval = self.series.series( 'test', 'minute', steps=2, timestamp=_time(250) )
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 299, interval[_time(240)] )
     
     ###
     ### with resolution
     ###
-    interval = self.series.series( 'test', 'hour', timestamp=_time(250) )
+    interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
     assert_equals( 59, interval[_time(0)][_time(0)] )
     assert_equals( 119, interval[_time(0)][_time(60)] )
 
     # single step, last one    
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200) )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( range(3659,7200,60), interval[_time(3600)] )
 
-    interval = self.series.series( 'test', 'hour', condensed=True, timestamp=_time(4200), steps=2 )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( range(59,3600,60), interval[_time(0)] )
     assert_equals( range(3659,7200,60), interval[_time(3600)] )
