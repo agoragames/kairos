@@ -1,3 +1,11 @@
+0.3.0
+=====
+
+Implemented support for Gregorian data intervals `[daily, weekly, monthly, yearly]`
+
+New API for `Timeseries.series()`, with optional arguments `start` and `end`
+replacing the old argument `timestamp`. See README for documentation.
+
 0.2.2
 =====
 
