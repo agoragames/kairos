@@ -4,6 +4,7 @@ Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
 from exceptions import *
+from datetime import datetime, timedelta
 
 import operator
 import sys
@@ -14,6 +15,8 @@ if sys.version_info[:2] > (2, 6):
     from collections import OrderedDict
 else:
     from ordereddict import OrderedDict
+
+from monthdelta import MonthDelta
 
 BACKENDS = {}
 
@@ -27,6 +30,8 @@ SIMPLE_TIMES = {
   'm' : 60*60*24*30,  # month(-ish)
   'y' : 60*60*24*365, # year(-ish)
 }
+
+GREGORIAN_TIMES = set(['daily', 'weekly', 'monthly', 'yearly'])
 
 def _resolve_time(value):
   '''
@@ -44,7 +49,144 @@ def _resolve_time(value):
     constant = SIMPLE_TIMES[ simple.groups()[1] ]
     return multiplier * constant
 
+  if value in GREGORIAN_TIMES:
+    return value
+
   raise ValueError('Unsupported time format %s'%value)
+
+class RelativeTime(object):
+  '''
+  Functions associated with relative time intervals.
+  '''
+
+  def __init__(self, step=1):
+    self._step = step
+
+  def to_bucket(self, timestamp, steps=0):
+    '''
+    Calculate the bucket from a timestamp, optionally including a step offset.
+    '''
+    return int( timestamp / self._step ) + steps
+
+  def from_bucket(self, bucket):
+    '''
+    Calculate the timestamp given a bucket.
+    '''
+    return bucket * self._step
+
+  def buckets(self, start, end):
+    '''
+    Calculate the buckets within a starting and ending timestamp.
+    '''
+    start_bucket = self.to_bucket(start)
+    end_bucket = self.to_bucket(end)
+    return range(start_bucket, end_bucket+1) 
+
+  def normalize(self, timestamp):
+    '''
+    Normalize a timestamp according to the interval configuration. Can
+    optionally determine an offset 
+    '''
+    return self.from_bucket( self.to_bucket(timestamp) )
+
+  def ttl(self, steps):
+    '''
+    Return the ttl given the number of steps, None if steps is not defined
+    or we're otherwise unable to calculate one.
+    '''
+    if steps:
+      return steps * self._step
+
+    return None
+
+class GregorianTime(object):
+  '''
+  Functions associated with gregorian time intervals.
+  '''
+  # NOTE: strptime weekly has the following bug:
+  # In [10]: datetime.strptime('197001', '%Y%U')
+  # Out[10]: datetime.datetime(1970, 1, 1, 0, 0)
+  # In [11]: datetime.strptime('197002', '%Y%U')
+  # Out[11]: datetime.datetime(1970, 1, 1, 0, 0)
+
+  FORMATS = {
+    'daily'   : '%Y%m%d',
+    'weekly'  : '%Y%U',
+    'monthly' : '%Y%m',
+    'yearly'  : '%Y'
+  }
+  
+  def __init__(self, step='daily'):
+    self._step = step
+
+  def to_bucket(self, timestamp, steps=0):
+    '''
+    Calculate the bucket from a timestamp.
+    '''
+    dt = datetime.utcfromtimestamp( timestamp )
+
+    if steps!=0:
+      if self._step == 'daily':
+        dt = dt + timedelta(days=steps)
+      elif self._step == 'weekly':
+        dt = dt + timedelta(weeks=steps)
+      elif self._step == 'monthly':
+        dt = dt + MonthDelta(steps)
+      elif self._step == 'yearly':
+        year = int(dt.strftime( self.FORMATS[self._step] ))
+        year += steps
+        dt = datetime(year=year, month=1, day=1)
+
+    return dt.strftime( self.FORMATS[self._step] )
+
+  def from_bucket(self, bucket):
+    '''
+    Calculate the timestamp given a bucket.
+    '''
+    if self._step == 'weekly':
+      year, week = bucket[:4], bucket[4:]
+      normal = datetime(year=int(year), month=1, day=1) + timedelta(weeks=int(week))
+    else:
+      normal = datetime.strptime(bucket, self.FORMATS[self._step])
+    return long(time.mktime( normal.timetuple() ))
+
+  def buckets(self, start, end):
+    '''
+    Calculate the buckets within a starting and ending timestamp.
+    '''
+    rval = [ self.to_bucket(start) ]
+    step = 1
+
+    # In theory there's already been a check that end>start
+    # TODO: Not a fan of an unbound while loop here
+    while True:
+      bucket = self.to_bucket(start, step)
+      bucket_time = self.from_bucket( bucket )
+      if bucket_time > end:
+        break
+      rval.append( bucket )
+      step += 1
+
+    return rval 
+
+  def normalize(self, timestamp):
+    '''
+    Normalize a timestamp according to the interval configuration.
+    '''
+    # So far, the only commonality with RelativeTime
+    return self.from_bucket( self.to_bucket(timestamp) )
+
+  def ttl(self, steps):
+    '''
+    Return the ttl given the number of steps, None if steps is not defined
+    or we're otherwise unable to calculate one.
+    '''
+    if steps:
+      # Approximate the ttl based on number of seconds, since it's 
+      # "close enough" 
+      return steps * SIMPLE_TIMES[ self._step[0] ]
+
+    return None
 
 class Timeseries(object):
   '''
@@ -69,7 +211,7 @@ class Timeseries(object):
     defining the series configuration. 
 
     Optionally provide a prefix for all keys. If prefix length>0 and it
-    doesn't end with ":", it will be automatically appended.
+    doesn't end with ":", it will be automatically appended. Redis only.
 
     The redis client must be API compatible with the Redis instance from
     the redis package http://pypi.python.org/pypi/redis
@@ -87,6 +229,7 @@ class Timeseries(object):
     prefix
       Optional, is a prefix for all keys in this histogram. If supplied
       and it doesn't end with ":", it will be automatically appended.
+      Redis only.
 
     read_func
       Optional, is a function applied to all values read back from the
@@ -134,28 +277,30 @@ class Timeseries(object):
 
     # Preprocess the intervals
     for interval,config in self._intervals.iteritems():
-      # Re-write the configuration values so that it doesn't have to be
-      # processed every time.
+      # Copy the interval name into the configuration, needed for redis
+      config['interval'] = interval
       step = config['step'] = _resolve_time( config['step'] ) # Required
       steps = config.get('steps',None)       # Optional
       resolution = config['resolution'] = _resolve_time( 
         config.get('resolution',config['step']) ) # Optional
 
-      # TODO: Remove the prefix support here since it's redis-only (and if not
-      # then fix the backends accordingly).
-      def calc_keys(name, timestamp, s=step, r=resolution, i=interval):
-        interval_bucket = int( timestamp/s )
-        resolution_bucket = int( timestamp/r )
-        interval_key = '%s%s:%s:%s'%(self._prefix, name, i, interval_bucket)
-        resolution_key = '%s:%s'%(interval_key, resolution_bucket)
+      if step in GREGORIAN_TIMES:
+        interval_calc = GregorianTime(step)
+      else:
+        interval_calc = RelativeTime(step)
 
-        return interval_bucket, resolution_bucket, interval_key, resolution_key
+      if resolution in GREGORIAN_TIMES:
+        resolution_calc = GregorianTime(resolution)
+      else:
+        resolution_calc = RelativeTime(resolution)
       
       expire = False
       if steps: expire = step*steps
-
-      config['calc_keys'] = calc_keys
-      config['expire'] = expire
+      
+      config['i_calc'] = interval_calc
+      config['r_calc'] = resolution_calc
+      
+      config['expire'] = interval_calc.ttl( steps )
       config['coarse'] = (resolution==step)
 
   def insert(self, name, value, timestamp=None):
@@ -232,8 +377,7 @@ class Timeseries(object):
     # TODO: figure out how to not recalculate this value that subclasses will
     # also be calculating
     if condensed and not config['coarse']:
-      i_bucket, r_bucket, i_key, r_key = config['calc_keys'](name, timestamp)
-      rval = { i_bucket*config['step'] : self._condense(rval) }
+      rval = { config['i_calc'].normalize(timestamp) : self._condense(rval) }
     if transform:
       for k,v in rval.iteritems():
         rval[k] = self._process_transform(v, transform)
@@ -245,7 +389,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
   
-  def series(self, name, interval, steps=None, condensed=False, timestamp=None, transform=None):
+  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
@@ -260,22 +404,34 @@ class Timeseries(object):
 
     Raises UnknownInterval if `interval` not configured.
     '''
-    # TODO: support start and end timestamps
-    # TODO: support other ways of declaring the interval
-    if not timestamp:
-      timestamp = time.time()
-
     config = self._intervals.get(interval)
     if not config:
       raise UnknownInterval(interval)
-    step = config['step']
     steps = steps if steps else config.get('steps',1)
 
-    end_timestamp = timestamp
-    end_bucket = int( end_timestamp / step )
-    start_bucket = end_bucket - steps +1 # +1 because it's inclusive of end
-
-    interval_buckets = [ start_bucket+s for s in range(steps) ]
+    # Fugly range determination, all to get ourselves a start and end 
+    # timestamp. Adjust steps argument to include the anchoring date.
+    if not end:
+      if start:
+        start_bucket = config['i_calc'].to_bucket( start )
+        end_bucket = config['i_calc'].to_bucket( start, steps-1 )
+      else:
+        end = time.time()
+        end_bucket = config['i_calc'].to_bucket( end )
+        start_bucket = config['i_calc'].to_bucket( end, (-steps+1) )
+    else:
+      end_bucket = config['i_calc'].to_bucket( end )
+      if start:
+        start_bucket = config['i_calc'].to_bucket( start )
+      else:
+        start_bucket = config['i_calc'].to_bucket( end, (-steps+1) )
+      
+    # Now that we have start and end buckets, convert them back to normalized
+    # time stamps and then back to buckets. :)
+    start = config['i_calc'].from_bucket( start_bucket )
+    end = config['i_calc'].from_bucket( end_bucket )
+    
+    interval_buckets = config['i_calc'].buckets(start, end)
     rval = self._series(name, interval, config, interval_buckets)
 
     if config['coarse'] and transform:

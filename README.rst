@@ -2,7 +2,7 @@
 Kairos - Time series data storage in Redis and Mongo
 ====================================================
 
-:Version: 0.2.2
+:Version: 0.3.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, mongo, time, timeseries, rrd, gevent, statistics
@@ -103,7 +103,8 @@ keyword arguments to the constructor are: ::
       # practices according to the backend type.
       minute: {
         
-        # Required. The number of seconds that the interval will cover
+        # Required. The number of seconds that the interval will cover,
+        # or a supported Gregorian interval.
         step: 60,
         
         # Optional. The maximum number of intervals to maintain. If supplied,
@@ -113,9 +114,9 @@ keyword arguments to the constructor are: ::
         
         # Optional. Defines the resolution of the data, i.e. the number of 
         # seconds in which data is assumed to have occurred "at the same time".
-        # So if you're tracking a month long time series, you may only need 
+        # So if you're tracking a month-long time series, you may only need 
         # resolution down to the day, or resolution=86400. Defaults to same
-        # value as "step".
+        # value as "step". Can also be a Gregorian interval.
         resolution: 60,
       }
     }
@@ -124,6 +125,15 @@ In addition to specifying ``step`` and ``resolution`` in terms of seconds,
 kairos also supports a simplified format for larger time intervals. For
 hours (h), days (d), weeks (w), months (m) and years (y), you can use 
 the format ``30d`` to represent 30 days, for example.
+
+As of ``0.3.0``, kairos also supports the Gregorian calendar for ``step``
+and ``resolution``. Either or both parameters can use the terms ``[daily,
+weekly, monthly, yearly]`` to describe an interval. You can also mix these
+terms with the time periods defined in terms of seconds (e.g. ``daily`` in 
+``1h`` resolutions). The expiration time for Gregorian dates is still defined
+in terms of seconds and may not match the  varying month lengths, leap years, 
+etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
+keys are so may be easier to use in raw form or any integrated tools.
 
 Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
@@ -193,17 +203,36 @@ Almost identical to ``get``, supports the following parameters:
 
 * **name** The name of the statistic
 * **interval** The named interval to read from
-* **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1.
-* **timestamp** `(optional)` The timestamp of the last step to read, defaults to ``time.time()``; i.e. ``steps`` is the number of steps before ``timestamp``.
+* **start** `(optional)` The timestamp which should be in the first interval of the returned data.
+* **end** `(optional)` The timestamp which should be in the last interval of the returned data. 
+* **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1. Ignored if both ``start`` and ``end`` are defined. If either ``start`` or ``end`` are defined, ``steps`` is inclusive of whatever interval that timestamp falls into.
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
 * **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
 
-Returns a dictionary of ``{ timestamp : { resolution_timestamp: data } }``, where 
-``timestamp`` and ``resolution_timestamp`` are Unix timestamps
+Returns an ordered dictionary of ``{ interval_timestamp : { resolution_timestamp: data } }``,
+where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
 and ``data`` is a data structure corresponding to the type of series, or whatever 
 ``transform`` returns.  If not using resolutions or ``condensed=True``, the dictionary
-will be of the form ``{ timestamp : data }``.
+will be of the form ``{ interval_timestamp : data }``.
 
+If both ``start`` and ``end`` are defined, the returned data will start and end
+on intervals including those timestamps. If only ``start`` is defined, then the
+return data will start with an interval that includes that timestamp, with the
+total number of intervals returned defined by ``steps``. If only ``end`` is 
+defined, then the return data will end with an interval that includes that 
+timestamp, with the total number of intervals preceeding it defined by ``steps``.
+
+It is important to note that the interval timestamps in the returned data will
+not necessarily match ``start`` or ``end``. This is because of the consistent
+hashing scheme that kairos uses, such that ``start`` and ``end`` will be 
+translated into the bucket in which it can be found.
+
+
+Deleting Data
+-------------
+
+To delete the data, call ``Timeseries.delete`` with the name of your statistic,
+and all values in all intervals will be deleted.
 
 Dragons!
 --------
