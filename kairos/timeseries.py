@@ -374,8 +374,6 @@ class Timeseries(object):
     rval = self._get( name, interval, config, timestamp )
 
     # If condensed, collapse the result into a single row
-    # TODO: figure out how to not recalculate this value that subclasses will
-    # also be calculating
     if condensed and not config['coarse']:
       rval = { config['i_calc'].normalize(timestamp) : self._condense(rval) }
     if transform:
@@ -389,7 +387,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
   
-  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None):
+  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None, collapse=False):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
@@ -408,6 +406,9 @@ class Timeseries(object):
     if not config:
       raise UnknownInterval(interval)
     steps = steps if steps else config.get('steps',1)
+
+    # If collapse, also condense
+    if collapse: condensed=True
 
     # Fugly range determination, all to get ourselves a start and end 
     # timestamp. Adjust steps argument to include the anchoring date.
@@ -434,20 +435,32 @@ class Timeseries(object):
     interval_buckets = config['i_calc'].buckets(start, end)
     rval = self._series(name, interval, config, interval_buckets)
 
-    if config['coarse'] and transform:
-      for key,data in rval.iteritems():
-        rval[key] = self._process_transform(data, transform)
+    # If fine-grained, first do the condensed pass so that it's easier to do
+    # the collapse afterwards. Be careful not to run the transform if there's
+    # going to be another pass at condensing the data.
     if not config['coarse']:
       if condensed:
         for key in rval.iterkeys():
           data = self._condense( rval[key] )
-          if transform:
+          if transform and not collapse:
             data = self._process_transform(data, transform)
           rval[key] = data
       elif transform:
         for interval,resolutions in rval.iteritems():
           for key in resolutions.iterkeys():
             resolutions[key] = self._process_transform(resolutions[key], transform)
+
+    if config['coarse'] or collapse:
+      if collapse:
+        data = self._condense(rval)
+        if transform:
+          rval = { rval.keys()[0] : self._process_transform(data, transform) }
+        else:
+          rval = { rval.keys()[0] : data }
+
+      elif transform:
+        for key,data in rval.iteritems():
+          rval[key] = self._process_transform(data, transform)
     
     return rval
 
@@ -629,10 +642,10 @@ class Gauge(Timeseries):
 
   def _condense(self, data):
     '''
-    Condense by adding together all of the lists.
+    Condense by returning the last data value of the gauge.
     '''
     if data:
-      return data.values()
+      return data.values()[-1]
     return []
 
 # Load the backends after all the timeseries had been defined.

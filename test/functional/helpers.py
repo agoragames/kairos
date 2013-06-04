@@ -197,6 +197,16 @@ class SeriesTest(Chai):
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
     assert_equals( {'min':1, 'count':59}, interval[_time(0)] )
     assert_equals( {'min':240, 'count':60}, interval[_time(240)] )
+
+    # with collapsed
+    interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
+    assert_equals( map(_time,[0]), interval.keys() )
+    assert_equals( list(range(1,300)), interval[_time(0)] )
+
+    # with transforms and collapsed
+    interval = self.series.series( 'test', 'minute', end=_time(250), transform=['min','count'], collapse=True )
+    assert_equals( map(_time,[0]), interval.keys() )
+    assert_equals( {'min':1, 'count':299}, interval[_time(0)] )
     
     ###
     ### with resolution
@@ -227,6 +237,17 @@ class SeriesTest(Chai):
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), transform=['min','max'] )
     assert_equals( 1, len(interval) )
     assert_equals( {'min':3600, 'max':7199}, interval[_time(3600)] )
+
+    # with collapsed
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 7199, len(interval[_time(0)]) )
+    assert_equals( list(range(1,7200)), interval[_time(0)] )
+
+    # with transforms and collapsed
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True, transform=['min','count','max'] )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( {'min':1, 'max':7199, 'count':7199}, interval[_time(0)] )
 
 class HistogramTest(Chai):
 
@@ -301,6 +322,13 @@ class HistogramTest(Chai):
     interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( list(range(120,150)), sorted(interval[_time(240)].keys()) )
+
+    # with collapsed
+    interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( list(range(0,150)), sorted(interval[_time(0)].keys()) )
+    for k in xrange(1,150):
+      assert_equals(2, interval[_time(0)][k])
     
     ###
     ### with resolution
@@ -321,6 +349,12 @@ class HistogramTest(Chai):
     assert_equals( 1800, len(interval[_time(0)]) )
     assert_equals( 1800, len(interval[_time(3600)]) )
     assert_equals( list(range(1800,3600)), sorted(interval[_time(3600)].keys()) )
+
+    # with collapsed
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 3600, len(interval[_time(0)]) )
+    assert_equals( list(range(0,3600)), sorted(interval[_time(0)].keys()) )
 
 class CountTest(Chai):
 
@@ -390,6 +424,11 @@ class CountTest(Chai):
     interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 60, interval[_time(240)] )
+
+    # with collapse
+    interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 299, interval[_time(0)] )
     
     ###
     ### with resolution
@@ -409,6 +448,11 @@ class CountTest(Chai):
     assert_equals( map(_time, [0,3600]), interval.keys() )
     assert_equals( 3599, interval[_time(0)] )
     assert_equals( 3600, interval[_time(3600)] )
+
+    # with collapse
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 7199, interval[_time(0)] )
 
 class GaugeTest(Chai):
 
@@ -456,11 +500,11 @@ class GaugeTest(Chai):
     
     interval = self.series.get( 'test', 'hour', timestamp=_time(100), condensed=True )
     assert_equals( 1, len(interval) )
-    assert_equals( range(59,3600,60), interval[_time(0)] )
+    assert_equals( 3599, interval[_time(0)] )
     
     interval = self.series.get( 'test', 'hour', timestamp=_time(4000), condensed=True )
     assert_equals( 1, len(interval) )
-    assert_equals( range(3659,7200,60), interval[_time(3600)] )
+    assert_equals( 7199, interval[_time(3600)] )
 
   def test_series(self):
     # 2 hours worth of data
@@ -479,6 +523,11 @@ class GaugeTest(Chai):
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 299, interval[_time(240)] )
     
+    # with collapse
+    interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 299, interval[_time(0)] )
+
     ###
     ### with resolution
     ###
@@ -491,9 +540,14 @@ class GaugeTest(Chai):
     # single step, last one    
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
-    assert_equals( range(3659,7200,60), interval[_time(3600)] )
+    assert_equals( 7199, interval[_time(3600)] )
 
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
-    assert_equals( range(59,3600,60), interval[_time(0)] )
-    assert_equals( range(3659,7200,60), interval[_time(3600)] )
+    assert_equals( 3599, interval[_time(0)] )
+    assert_equals( 7199, interval[_time(3600)] )
+
+    # with collapse
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
+    assert_equals( map(_time, [0]), interval.keys() )
+    assert_equals( 7199, interval[_time(0)] )
