@@ -8,6 +8,9 @@ allowing easy calculation of aggregates across an entire timeseries.
 Fix inconsistency in gauge type when collapsing or condensing gauge data.
 Value for an interval is the last recorded gauge value now.
 
+Added support in `get()` and `series()` for joining multiple timeseries
+into a single result.
+
 0.3.0
 =====
 
