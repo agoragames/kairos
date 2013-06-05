@@ -378,7 +378,8 @@ class Timeseries(object):
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
       results = [ self._get(x, interval, config, timestamp) for x in name ]
-      rval = self._join_results( results )
+      # Even resolution data is "coarse" in that it's not nested
+      rval = self._join_results( results, True )
     else:
       rval = self._get( name, interval, config, timestamp )
 
@@ -450,7 +451,7 @@ class Timeseries(object):
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
       results = [ self._series(x, interval, config, interval_buckets) for x in name ]
-      rval = self._join_results( results )
+      rval = self._join_results( results, config['coarse'] )
     else:
       rval = self._series(name, interval, config, interval_buckets)
 
@@ -489,7 +490,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
-  def _join_results(self, results):
+  def _join_results(self, results, coarse):
     '''
     Join a list of results. Supports both get and series.
     '''
@@ -498,7 +499,7 @@ class Timeseries(object):
     for res in results:
       i_keys.update( res.keys() )
     for i_key in sorted(i_keys):
-      if config['coarse']:
+      if coarse:
         rval[i_key] = self._join( [res.get(i_key) for res in results] )
       else:
         rval[i_key] = OrderedDict()
