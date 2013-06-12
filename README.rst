@@ -276,9 +276,12 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
   $ nosetests
 
 
-Future
-======
+Roadmap
+=======
 
+* Round-robbin intervals for datastores without TTLs
+* Round-robbin databases: memcache (and compatible, e.g. ElastiCache), Riak,
+  DynamoDB, SimpleDB, more
 * Redis optimizations
 * Bloom filters
 * "Native" transforms that leverage data store features (e.g. "length")
