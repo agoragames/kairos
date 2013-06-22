@@ -717,10 +717,12 @@ class Gauge(Timeseries):
 
   def _condense(self, data):
     '''
-    Condense by returning the last data value of the gauge.
+    Condense by returning the last real value of the gauge.
     '''
     if data:
-      return data.values()[-1]
+      data = filter(None,data.values())
+      if data:
+        return data[-1]
     return None
 
   def _join(self, rows):

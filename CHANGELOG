@@ -11,6 +11,9 @@ Value for an interval is the last recorded gauge value now.
 Added support in `get()` and `series()` for joining multiple timeseries
 into a single result.
 
+When condensing gauge data, the last non-null value is used, rather than
+the last value in the series independent of whether it was set.
+
 0.3.0
 =====
 
