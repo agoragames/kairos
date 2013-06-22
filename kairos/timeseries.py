@@ -693,7 +693,7 @@ class Count(Timeseries):
     '''
     rval = 0
     for row in rows:
-      if row: rval += sum(row)
+      if row: rval += row
     return rval
 
 class Gauge(Timeseries):
