@@ -131,6 +131,8 @@ class MongoBackend(Timeseries):
     '''
     Fetch a series of buckets.
     '''
+    # make a copy of the buckets because we're going to mutate it
+    buckets = list(buckets)
     rval = OrderedDict()
     step = config['step']
     resolution = config.get('resolution',step)
@@ -154,6 +156,10 @@ class MongoBackend(Timeseries):
       else:
         rval.setdefault( i_key, OrderedDict() )
         rval[ i_key ][ config['r_calc'].from_bucket(record['resolution']) ] = data
+
+    # are there buckets at the end for which we received no data?
+    while buckets:
+      rval[ config['i_calc'].from_bucket(buckets.pop(0)) ] = self._type_no_value()
 
     return rval
   

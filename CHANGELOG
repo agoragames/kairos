@@ -1,3 +1,19 @@
+series-collapse
+===============
+
+Added `collapse` keyword argument to `series()` for collapsing an entire
+timeseries into a single row. Transforms are performed after the collapse,
+allowing easy calculation of aggregates across an entire timeseries.
+
+Fix inconsistency in gauge type when collapsing or condensing gauge data.
+Value for an interval is the last recorded gauge value now.
+
+Added support in `get()` and `series()` for joining multiple timeseries
+into a single result.
+
+When condensing gauge data, the last non-null value is used, rather than
+the last value in the series independent of whether it was set.
+
 0.3.0
 =====
 
