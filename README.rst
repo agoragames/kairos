@@ -2,7 +2,7 @@
 Kairos - Time series data storage in Redis and Mongo
 ====================================================
 
-:Version: 0.3.0
+:Version: 0.4.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, mongo, time, timeseries, rrd, gevent, statistics
@@ -184,7 +184,7 @@ get
 
 Supports the following parameters:
 
-* **name** The name of the statistic
+* **name** The name of the statistic, or a list of names whose data will be joined together.
 * **interval** The named interval to read from
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
@@ -201,13 +201,14 @@ series
 
 Almost identical to ``get``, supports the following parameters:
 
-* **name** The name of the statistic
+* **name** The name of the statistic, or a list of names whose data will be joined together.
 * **interval** The named interval to read from
 * **start** `(optional)` The timestamp which should be in the first interval of the returned data.
 * **end** `(optional)` The timestamp which should be in the last interval of the returned data. 
 * **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1. Ignored if both ``start`` and ``end`` are defined. If either ``start`` or ``end`` are defined, ``steps`` is inclusive of whatever interval that timestamp falls into.
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
 * **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+* **collapse** `(optional)` Optionally collapse all of the data in the date range into a single result.
 
 Returns an ordered dictionary of ``{ interval_timestamp : { resolution_timestamp: data } }``,
 where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
