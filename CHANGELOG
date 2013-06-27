@@ -6,7 +6,7 @@ timeseries into a single row. Transforms are performed after the collapse,
 allowing easy calculation of aggregates across an entire timeseries.
 
 Fix inconsistency in gauge type when collapsing or condensing gauge data.
-Value for an interval is the last recorded non-nuill gauge value now.
+Value for an interval is the last recorded non-null gauge value now.
 
 Added support in `get()` and `series()` for joining multiple timeseries
 into a single result by calling with a list of timeseries names rather
