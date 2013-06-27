@@ -285,6 +285,8 @@ Roadmap
 * Redis optimizations
 * Bloom filters
 * "Native" transforms that leverage data store features (e.g. "length")
+* Joined series populate a data structure at query time
+* Joined series support concurrency "runner"
 
 License
 =======
