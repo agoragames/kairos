@@ -284,6 +284,7 @@ Roadmap
 * Round-robbin databases: memcache (and compatible, e.g. ElastiCache), Riak,
   DynamoDB, SimpleDB, more
 * Redis optimizations
+* Capped collection support for mongo
 * Bloom filters
 * "Native" transforms that leverage data store features (e.g. "length")
 * Joined series populate a data structure at query time
