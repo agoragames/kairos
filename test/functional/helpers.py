@@ -37,6 +37,52 @@ class GregorianTest(Chai):
       } )
     self.series.delete('test')
 
+  def test_insert_multiple_intervals_after(self):
+    ts1 = _time(0)
+    ts2 = self.series._intervals['weekly']['i_calc'].normalize(ts1, 1)
+    ts3 = self.series._intervals['weekly']['i_calc'].normalize(ts1, 2)
+    assert_not_equals( ts1, ts2 )
+
+    self.series.insert( 'test', 32, timestamp=ts1, intervals=1 )
+
+    interval_1 = self.series.get( 'test', 'weekly', timestamp=ts1 )
+    assert_equals( [32], interval_1[ts1] )
+
+    interval_2 = self.series.get( 'test', 'weekly', timestamp=ts2 )
+    assert_equals( [32], interval_2[ts2] )
+
+    self.series.insert( 'test', 42, timestamp=ts1, intervals=2 )
+
+    interval_1 = self.series.get( 'test', 'weekly', timestamp=ts1 )
+    assert_equals( [32,42], interval_1[ts1] )
+    interval_2 = self.series.get( 'test', 'weekly', timestamp=ts2 )
+    assert_equals( [32,42], interval_2[ts2] )
+    interval_3 = self.series.get( 'test', 'weekly', timestamp=ts3 )
+    assert_equals( [42], interval_3[ts3] )
+
+  def test_insert_multiple_intervals_before(self):
+    ts1 = _time(0)
+    ts2 = self.series._intervals['weekly']['i_calc'].normalize(ts1, -1)
+    ts3 = self.series._intervals['weekly']['i_calc'].normalize(ts1, -2)
+    assert_not_equals( ts1, ts2 )
+
+    self.series.insert( 'test', 32, timestamp=ts1, intervals=-1 )
+
+    interval_1 = self.series.get( 'test', 'weekly', timestamp=ts1 )
+    assert_equals( [32], interval_1[ts1] )
+
+    interval_2 = self.series.get( 'test', 'weekly', timestamp=ts2 )
+    assert_equals( [32], interval_2[ts2] )
+
+    self.series.insert( 'test', 42, timestamp=ts1, intervals=-2 )
+
+    interval_1 = self.series.get( 'test', 'weekly', timestamp=ts1 )
+    assert_equals( [32,42], interval_1[ts1] )
+    interval_2 = self.series.get( 'test', 'weekly', timestamp=ts2 )
+    assert_equals( [32,42], interval_2[ts2] )
+    interval_3 = self.series.get( 'test', 'weekly', timestamp=ts3 )
+    assert_equals( [42], interval_3[ts3] )
+
   def test_get(self):
     for day in range(0,365):
       d = datetime(year=2038, month=1, day=1) + timedelta(days=day)
@@ -126,6 +172,52 @@ class SeriesTest(Chai):
         }
       } )
     self.series.delete('test')
+
+  def test_insert_multiple_intervals_after(self):
+    ts1 = _time(0)
+    ts2 = self.series._intervals['minute']['i_calc'].normalize(ts1, 1)
+    ts3 = self.series._intervals['minute']['i_calc'].normalize(ts1, 2)
+    assert_not_equals( ts1, ts2 )
+
+    self.series.insert( 'test', 32, timestamp=ts1, intervals=1 )
+
+    interval_1 = self.series.get( 'test', 'minute', timestamp=ts1 )
+    assert_equals( [32], interval_1[ts1] )
+
+    interval_2 = self.series.get( 'test', 'minute', timestamp=ts2 )
+    assert_equals( [32], interval_2[ts2] )
+
+    self.series.insert( 'test', 42, timestamp=ts1, intervals=2 )
+
+    interval_1 = self.series.get( 'test', 'minute', timestamp=ts1 )
+    assert_equals( [32,42], interval_1[ts1] )
+    interval_2 = self.series.get( 'test', 'minute', timestamp=ts2 )
+    assert_equals( [32,42], interval_2[ts2] )
+    interval_3 = self.series.get( 'test', 'minute', timestamp=ts3 )
+    assert_equals( [42], interval_3[ts3] )
+
+  def test_insert_multiple_intervals_before(self):
+    ts1 = _time(0)
+    ts2 = self.series._intervals['minute']['i_calc'].normalize(ts1, -1)
+    ts3 = self.series._intervals['minute']['i_calc'].normalize(ts1, -2)
+    assert_not_equals( ts1, ts2 )
+
+    self.series.insert( 'test', 32, timestamp=ts1, intervals=-1 )
+
+    interval_1 = self.series.get( 'test', 'minute', timestamp=ts1 )
+    assert_equals( [32], interval_1[ts1] )
+
+    interval_2 = self.series.get( 'test', 'minute', timestamp=ts2 )
+    assert_equals( [32], interval_2[ts2] )
+
+    self.series.insert( 'test', 42, timestamp=ts1, intervals=-2 )
+
+    interval_1 = self.series.get( 'test', 'minute', timestamp=ts1 )
+    assert_equals( [32,42], interval_1[ts1] )
+    interval_2 = self.series.get( 'test', 'minute', timestamp=ts2 )
+    assert_equals( [32,42], interval_2[ts2] )
+    interval_3 = self.series.get( 'test', 'minute', timestamp=ts3 )
+    assert_equals( [42], interval_3[ts3] )
 
   def test_get(self):
     # 2 hours worth of data, value is same asV timestamp

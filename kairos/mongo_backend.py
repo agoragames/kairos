@@ -65,7 +65,7 @@ class MongoBackend(Timeseries):
         self._client[interval].ensure_index( 
           [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
 
-  def _insert(self, name, value, timestamp):
+  def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the new value.
     '''
@@ -86,20 +86,35 @@ class MongoBackend(Timeseries):
     # make the results situation-dependent.
     # TODO: confirm that this is in fact using the indices correctly.
     for interval,config in self._intervals.iteritems():
-      insert = {'name':name, 'interval':config['i_calc'].to_bucket(timestamp)}
-      if not config['coarse']:
-        insert['resolution'] = config['r_calc'].to_bucket(timestamp)
-      query = insert.copy()
+      self._insert_data(name, value, timestamp, interval, config)
+      steps = intervals
+      if steps<0:
+        while steps<0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config)
+          steps += 1
+      elif steps>0:
+        while steps>0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config)
+          steps -= 1
 
-      if config['expire']:
-        insert['expire_from'] = datetime.utcfromtimestamp( timestamp )
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into mongo.'''
+    insert = {'name':name, 'interval':config['i_calc'].to_bucket(timestamp)}
+    if not config['coarse']:
+      insert['resolution'] = config['r_calc'].to_bucket(timestamp)
+    query = insert.copy()
 
-      # switch to atomic updates
-      insert = {'$set':insert.copy()}
-      self._insert_type( insert, value )
-      
-      # TODO: use write preference settings if we have them
-      self._client[interval].update( query, insert, upsert=True, check_keys=False )
+    if config['expire']:
+      insert['expire_from'] = datetime.utcfromtimestamp( timestamp )
+
+    # switch to atomic updates
+    insert = {'$set':insert.copy()}
+    self._insert_type( insert, value )
+
+    # TODO: use write preference settings if we have them
+    self._client[interval].update( query, insert, upsert=True, check_keys=False )
 
   def _get(self, name, interval, config, timestamp):
     '''
