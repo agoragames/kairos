@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+import gevent, gevent.monkey, gevent.pool
+gevent.monkey.patch_all()
+
+import redis
+import time
+
+client = redis.Redis('localhost')
+pool = gevent.pool.Pool(30)
+
+t0 = time.time()
+pipe = client.pipeline(transaction=False)
+for x in xrange(100):
+  for i in xrange(50000):
+    pipe.hincrby( str(x), i, 1 )
+pipe.execute()
+t1 = time.time()
+
+pipe = client.pipeline(transaction=False)
+for x in xrange(10,40):
+  #pipe.hgetall( str(x) )
+  pool.spawn( client.hgetall, str(x) )
+
+t2 = time.time()
+#res = pipe.execute()
+pool.join()
+t3 = time.time()
+
+rval = {}
+#for x,data in enumerate(res):
+  #rval[x] = data
+t4 = time.time()
+
+print t1-t0, t2-t1, t3-t2, t4-t3
+print len(rval)
+
+client.flushdb()
