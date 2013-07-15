@@ -28,6 +28,8 @@ class RedisBackend(Timeseries):
         return RedisCount.__new__(RedisCount, *args, **kwargs)
       elif ttype=='gauge':
         return RedisGauge.__new__(RedisGauge, *args, **kwargs)
+      elif ttype=='set':
+        return RedisSet.__new__(RedisSet, *args, **kwargs)
     return Timeseries.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
@@ -230,3 +232,17 @@ class RedisGauge(RedisBackend, Gauge):
   
   def _type_get(self, handle, key):
     return handle.get(key)
+
+class RedisSet(RedisBackend, Set):
+
+  def _type_insert(self, handle, key, value):
+    '''
+    Insert the value into the series.
+    '''
+    if value>0:
+      handle.sadd(key, value)
+    else:
+      handle.srem(key, value)
+
+  def _type_get(self, handle, key):
+    return handle.smembers(key)
