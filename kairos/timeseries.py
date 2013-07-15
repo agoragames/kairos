@@ -82,12 +82,12 @@ class RelativeTime(object):
     end_bucket = self.to_bucket(end)
     return range(start_bucket, end_bucket+1) 
 
-  def normalize(self, timestamp):
+  def normalize(self, timestamp, steps=0):
     '''
     Normalize a timestamp according to the interval configuration. Can
-    optionally determine an offset 
+    optionally determine an offset.
     '''
-    return self.from_bucket( self.to_bucket(timestamp) )
+    return self.from_bucket( self.to_bucket(timestamp, steps) )
 
   def ttl(self, steps):
     '''
@@ -143,6 +143,9 @@ class GregorianTime(object):
     '''
     Calculate the timestamp given a bucket.
     '''
+    # NOTE: this is due to a bug somewhere in strptime that does not process
+    # the week number of '%Y%U' correctly. That bug could be very specific to
+    # the combination of python and ubuntu that I was testing.
     if self._step == 'weekly':
       year, week = bucket[:4], bucket[4:]
       normal = datetime(year=int(year), month=1, day=1) + timedelta(weeks=int(week))
@@ -169,12 +172,13 @@ class GregorianTime(object):
 
     return rval 
 
-  def normalize(self, timestamp):
+  def normalize(self, timestamp, steps=0):
     '''
-    Normalize a timestamp according to the interval configuration.
+    Normalize a timestamp according to the interval configuration. Optionally
+    can be used to calculate the timestamp N steps away.
     '''
     # So far, the only commonality with RelativeTime
-    return self.from_bucket( self.to_bucket(timestamp) )
+    return self.from_bucket( self.to_bucket(timestamp, steps) )
 
   def ttl(self, steps):
     '''
@@ -303,15 +307,21 @@ class Timeseries(object):
       config['expire'] = interval_calc.ttl( steps )
       config['coarse'] = (resolution==step)
 
-  def insert(self, name, value, timestamp=None):
+  def insert(self, name, value, timestamp=None, intervals=0):
     '''
     Insert a value for the timeseries "name". For each interval in the 
     configuration, will insert the value into a bucket for the interval
     "timestamp". If time is not supplied, will default to time.time(), else it
     should be a floating point value.
 
+    If "intervals" is less than 0, inserts the value into timestamps
+    "abs(intervals)" preceeding "timestamp" (i.e. "-1" inserts one extra value).
+    If "intervals" is greater than 0, inserts the value into that many more
+    intervals after "timestamp". The default behavior is to insert for a single
+    timestamp.
+
     This supports the public methods of the same name in the subclasses. The
-    value is expected to already be converted 
+    value is expected to already be converted.
     '''
     if not timestamp:
       timestamp = time.time()
@@ -320,10 +330,11 @@ class Timeseries(object):
 
     # TODO: document acceptable names
     # TODO: document what types values are supported
-    # TODO: document behavior when time is outside the bounds of step*steps
+    # TODO: document behavior when time is outside the bounds of TTLed config
     # TODO: document how the data is stored.
+    # TODO: better abstraction for "intervals" processing rather than in each implementation
 
-    self._insert( name, value, timestamp )
+    self._insert( name, value, timestamp, intervals )
 
   def _insert(self, name, value, timestamp):
     '''
