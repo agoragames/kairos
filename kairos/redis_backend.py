@@ -50,7 +50,7 @@ class RedisBackend(Timeseries):
 
     return i_bucket, r_bucket, i_key, r_key
 
-  def _insert(self, name, value, timestamp):
+  def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the value.
     '''
@@ -58,25 +58,40 @@ class RedisBackend(Timeseries):
     # TODO: apply the prefix if we're using one.
 
     for interval,config in self._intervals.iteritems():
-      i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
-      
-      if config['coarse']:
-        self._type_insert(pipe, i_key, value)
-      else:
-        # Add the resolution bucket to the interval. This allows us to easily
-        # discover the resolution intervals within the larger interval, and
-        # if there is a cap on the number of steps, it will go out of scope
-        # along with the rest of the data
-        pipe.sadd(i_key, r_bucket)
-        self._type_insert(pipe, r_key, value)
-
-      expire = config['expire']
-      if expire:
-        pipe.expire(i_key, expire)
-        if not config['coarse']:
-          pipe.expire(r_key, expire)
+      self._insert_data(name, value, timestamp, interval, config, pipe)
+      steps = intervals
+      if steps<0:
+        while steps<0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config, pipe)
+          steps += 1
+      elif steps>0:
+        while steps>0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config, pipe)
+          steps -= 1
 
     pipe.execute()
+
+  def _insert_data(self, name, value, timestamp, interval, config, pipe):
+    '''Helper to insert data into redis'''
+    i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
+
+    if config['coarse']:
+      self._type_insert(pipe, i_key, value)
+    else:
+      # Add the resolution bucket to the interval. This allows us to easily
+      # discover the resolution intervals within the larger interval, and
+      # if there is a cap on the number of steps, it will go out of scope
+      # along with the rest of the data
+      pipe.sadd(i_key, r_bucket)
+      self._type_insert(pipe, r_key, value)
+
+    expire = config['expire']
+    if expire:
+      pipe.expire(i_key, expire)
+      if not config['coarse']:
+        pipe.expire(r_key, expire)
 
   def delete(self, name):
     '''
