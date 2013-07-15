@@ -745,6 +745,54 @@ class Gauge(Timeseries):
       if row: rval = row
     return rval
 
+class Set(Timeseries):
+  '''
+  Time series that manages sets.
+  '''
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if transform=='mean':
+      total = sum( data )
+      count = len( data )
+      data = float(total)/float(count) if count>0 else 0
+    elif transform=='count':
+      data = len(data)
+    elif transform=='min':
+      data = min(data or [0])
+    elif transform=='max':
+      data = max(data or [0])
+    elif transform=='sum':
+      data = sum(data)
+    elif callable(transform):
+      data = transform(data)
+    return data
+
+  def _process_row(self, data):
+    if self._read_func:
+      return set( (self._read_func(d) for d in data) )
+    return data
+
+  def _condense(self, data):
+    '''
+    Condense by or-ing all of the sets.
+    '''
+    if data:
+      return reduce(operator.ior, data.values())
+    return set()
+
+  def _join(self, rows):
+    '''
+    Join multiple rows worth of data into a single result.
+    '''
+    rval = set()
+    for row in rows:
+      if row: rval |= row
+    return rval
+
 # Load the backends after all the timeseries had been defined.
 try:
   from redis_backend import RedisBackend

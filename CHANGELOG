@@ -4,6 +4,11 @@ multiple-insert
 Adding support for inserting data into multiple intervals with a single
 call to `insert()`.
 
+set-types
+=========
+
+Added support for set types when using redis storage.
+
 0.4.0
 =====
 
