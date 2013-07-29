@@ -684,8 +684,8 @@ class Count(Timeseries):
       data = transform(data)
     return data
   
-  def insert(self, name, value=1, timestamp=None):
-    super(Count,self).insert(name, value, timestamp)
+  def insert(self, name, value=1, timestamp=None, **kwargs):
+    super(Count,self).insert(name, value, timestamp, **kwargs)
 
   def _process_row(self, data):
     return int(data) if data else 0
