@@ -1,3 +1,8 @@
+0.4.2
+=====
+
+Fixed insert on count timeseries not supporting the intervals keyword argument.
+
 0.4.1
 =====
 
