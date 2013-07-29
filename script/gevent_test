@@ -13,6 +13,7 @@ pipe = client.pipeline(transaction=False)
 for x in xrange(100):
   for i in xrange(50000):
     pipe.hincrby( str(x), i, 1 )
+    if i%1000==0: pipe.execute()
 pipe.execute()
 t1 = time.time()
 
