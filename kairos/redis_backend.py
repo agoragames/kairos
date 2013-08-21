@@ -30,6 +30,8 @@ class RedisBackend(Timeseries):
         return RedisGauge.__new__(RedisGauge, *args, **kwargs)
       elif ttype=='set':
         return RedisSet.__new__(RedisSet, *args, **kwargs)
+      elif ttype=='average':
+        return RedisAverage.__new__(RedisAverage, *args, **kwargs)
     return Timeseries.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
@@ -232,6 +234,25 @@ class RedisGauge(RedisBackend, Gauge):
   
   def _type_get(self, handle, key):
     return handle.get(key)
+
+class RedisAverage(RedisBackend, Set):
+
+  def _type_insert(self, handle, key, value):
+    '''
+    Insert the value into the series.
+    '''
+    if value!=0:
+      if isinstance(value,float):
+        handle.hincrbyfloat(key, 'sum', value)
+      else:
+        handle.hincr(key,'sum', value)
+    handle.hincr(key,'count', 1)
+
+  def _type_get(self, handle, key):
+    data = handle.hgetall(key)
+    if data and data.get('count',0)!=0:
+      return data.get('sum',0) / data.get('count',0)
+    return 0.0
 
 class RedisSet(RedisBackend, Set):
 

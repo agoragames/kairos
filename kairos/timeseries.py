@@ -707,6 +707,53 @@ class Count(Timeseries):
       if row: rval += row
     return rval
 
+class Average(Timeseries):
+  '''
+  Time series that stores a running average.
+  '''
+
+  def _transform(self, data, transform):
+    '''
+    Transform the data. If the transform is not supported by this series,
+    returns the data unaltered.
+    '''
+    if callable(transform):
+      data = transform(data)
+    return data
+
+  def _process_row(self, data):
+    if self._read_func:
+      return self._read_func(data)
+    return data
+
+  def _condense(self, data):
+    '''
+    Condense by returning the last real value of the gauge.
+    '''
+    # TODO not sure that this is actually the average, but then data would need
+    #   to be the hash and that makes the other cases challenging. Conceptually
+    #   however, asking this or "join" on a set sort of implies the way data is
+    #   weighted in this calculation. Alternatively, if this series always
+    #   output the {sum,value} hash then it's up to the caller to use the 'mean'
+    #   transform. That also means other data, such as "count" could be sourced
+    #   as well.
+    if data:
+      return sum(data) / float(len(data))
+    return 0.0
+
+  def _join(self, rows):
+    '''
+    Join multiple rows worth of data into a single result.
+    '''
+    s,c = 0
+    for row in rows:
+      if row:
+        s += row
+      c += 1
+    if c:
+      return s/float(c)
+    return 0.0
+
 class Gauge(Timeseries):
   '''
   Time series that stores the last value.
