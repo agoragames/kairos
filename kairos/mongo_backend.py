@@ -223,3 +223,11 @@ class MongoGauge(MongoBackend, Gauge):
   def _type_no_value(self):
     # TODO: resolve this disconnect with redis backend
     return 0
+
+class MongoAverage(MongoBackend, Gauge):
+  
+  def _insert_type(self, spec, value):
+    spec['$inc'] = {'sum':value,'count':1}
+
+  def _type_no_value(self):
+    return {'sum':0, 'count':0}

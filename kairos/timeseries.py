@@ -717,7 +717,13 @@ class Average(Timeseries):
     Transform the data. If the transform is not supported by this series,
     returns the data unaltered.
     '''
-    if callable(transform):
+    if transform=='mean':
+      data = float(data.get('sum',0))/float(data.get('count',0) or 1)
+    elif transform=='count':
+      data = data.get('count',0)
+    elif transform=='sum':
+      data = data.get('sum',0)
+    elif callable(transform):
       data = transform(data)
     return data
 
@@ -728,31 +734,23 @@ class Average(Timeseries):
 
   def _condense(self, data):
     '''
-    Condense by returning the last real value of the gauge.
+    Condense by summing the sum and count across resolutions.
     '''
-    # TODO not sure that this is actually the average, but then data would need
-    #   to be the hash and that makes the other cases challenging. Conceptually
-    #   however, asking this or "join" on a set sort of implies the way data is
-    #   weighted in this calculation. Alternatively, if this series always
-    #   output the {sum,value} hash then it's up to the caller to use the 'mean'
-    #   transform. That also means other data, such as "count" could be sourced
-    #   as well.
     if data:
-      return sum(data) / float(len(data))
-    return 0.0
-
+      return { 
+        'sum'   : sum([item.get('sum',0) for item in data.itervalues()]),
+        'count' : sum([item.get('count',0) for item in data.itervalues()]),
+      }
+    return { 'sum':0, 'count':0 }
+  
   def _join(self, rows):
     '''
     Join multiple rows worth of data into a single result.
     '''
-    s,c = 0
-    for row in rows:
-      if row:
-        s += row
-      c += 1
-    if c:
-      return s/float(c)
-    return 0.0
+    return {
+      'sum'   : sum([item.get('sum',0) for item in rows]),
+      'count' : sum([item.get('count',0) for item in rows]),
+    }
 
 class Gauge(Timeseries):
   '''

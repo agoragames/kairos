@@ -250,9 +250,7 @@ class RedisAverage(RedisBackend, Set):
 
   def _type_get(self, handle, key):
     data = handle.hgetall(key)
-    if data and data.get('count',0)!=0:
-      return data.get('sum',0) / data.get('count',0)
-    return 0.0
+    return data if data else {'sum':0,'count':0}
 
 class RedisSet(RedisBackend, Set):
 
