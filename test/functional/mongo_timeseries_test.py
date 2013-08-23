@@ -8,32 +8,38 @@ from pymongo import *
 from chai import Chai
 
 from . import helpers
+from .helpers import unittest, os
 
-class MongoSeriesTest(helpers.SeriesTest):
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoSeriesTest,self).setUp()
 
-class MongoHistogramTest(helpers.HistogramTest):
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoHistogramTest(helpers.HistogramHelper):
 
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoHistogramTest,self).setUp()
 
-class MongoCountTest(helpers.CountTest):
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoCountTest(helpers.CountHelper):
 
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoCountTest,self).setUp()
 
-class MongoGaugeTest(helpers.GaugeTest):
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoGaugeTest(helpers.GaugeHelper):
 
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoGaugeTest,self).setUp()
 
-class MongoGregorianTest(helpers.GregorianTest):
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoGregorianTest(helpers.GregorianHelper):
 
   def setUp(self):
     self.client = MongoClient('localhost')
