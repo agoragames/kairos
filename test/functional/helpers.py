@@ -8,3 +8,5 @@ from histogram_helper import HistogramTest
 from count_helper import CountTest
 from set_helper import SetTest
 from gauge_helper import GaugeTest
+
+from helper_helper import *

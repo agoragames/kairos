@@ -7,39 +7,45 @@ import datetime
 import redis
 from chai import Chai
 
-import helpers
+from helpers import *
 
-class RedisSeriesTest(helpers.SeriesTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisSeriesTest(SeriesTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisSeriesTest,self).setUp()
 
-class RedisHistogramTest(helpers.HistogramTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisHistogramTest(HistogramTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisHistogramTest,self).setUp()
 
-class RedisCountTest(helpers.CountTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisCountTest(CountTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisCountTest,self).setUp()
 
-class RedisGaugeTest(helpers.GaugeTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisGaugeTest(GaugeTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisGaugeTest,self).setUp()
 
-class RedisSetTest(helpers.SetTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisSetTest(SetTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisSetTest,self).setUp()
 
-class RedisGregorianTest(helpers.GregorianTest):
+@unittest.skipIf( os.environ.get('SKIP_REDIS','').lower()=='true', 'skipping redis' )
+class RedisGregorianTest(GregorianTest):
 
   def setUp(self):
     self.client = redis.Redis('localhost')

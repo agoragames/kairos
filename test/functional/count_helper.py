@@ -1,6 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
+@unittest.skipIf( os.environ.get('SKIP_COUNT','').lower()=='true', 'skipping counts' )
 class CountTest(Chai):
 
   def setUp(self):

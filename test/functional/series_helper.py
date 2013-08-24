@@ -1,6 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
+@unittest.skipIf( os.environ.get('SKIP_SERIES','').lower()=='true', 'skipping series' )
 class SeriesTest(Chai):
 
   def setUp(self):

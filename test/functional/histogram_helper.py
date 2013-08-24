@@ -1,6 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
+@unittest.skipIf( os.environ.get('SKIP_HISTOGRAM','').lower()=='true', 'skipping histogram' )
 class HistogramTest(Chai):
 
   def setUp(self):
