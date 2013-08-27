@@ -1,2 +1,2 @@
 # For calculating month deltas in gregorian systems
-monthdelta
+MonthDelta==1.0b
