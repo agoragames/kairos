@@ -172,7 +172,7 @@ the corresponding series type.
 * **series** list
 * **histogram** dictionary (map)
 * **count** integer or float
-* **guage** value
+* **gauge** value
 
 Reading Data
 ------------
