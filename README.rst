@@ -129,7 +129,7 @@ the format ``30d`` to represent 30 days, for example.
 As of ``0.3.0``, kairos also supports the Gregorian calendar for ``step``
 and ``resolution``. Either or both parameters can use the terms ``[daily,
 weekly, monthly, yearly]`` to describe an interval. You can also mix these
-terms with the time periods defined in terms of seconds (e.g. ``daily`` in 
+terms between ``step`` and ``resolution`` (e.g. ``daily`` in 
 ``1h`` resolutions). The expiration time for Gregorian dates is still defined
 in terms of seconds and may not match the  varying month lengths, leap years, 
 etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
@@ -148,14 +148,15 @@ followng arguments:
 
 * **name** The name of the statistic
 * **value** The value of the statistic (optional for count timeseries)
-* **timestamp** `(optional)` The timestamp of the statstic, defaults to ``time.time()`` if not supplied
+* **timestamp** `(optional)` The timestamp of the statistic, defaults to ``time.time()`` if not supplied
 
 For ``series`` and ``histogram`` timeseries types, ``value`` can be whatever 
 you'd like, optionally processed through the ``write_func`` method before being 
 written to storage. Depending on your needs, ``value`` (or the output of 
 ``write_func``) does not have to be a number, and can be used to track such 
 things as unique occurances of a string or references to other objects, such 
-as MongoDB ObjectIds.
+as MongoDB ObjectIds. Note that many of the aggregate functions in ``histogram``
+expect the data to be real numbers.
 
 For the ``count`` type, ``value`` is optional and should be a float or integer 
 representing the amount by which to increment or decrement ``name``; it defaults
@@ -164,13 +165,14 @@ to ``1``.
 For the ``gauge`` type, ``value`` can be anything and it will be stored as-is.
 
 Data for all timeseries is stored in "buckets", where any Unix timestamp will
-resolve a consistent bucket name according to the ``step`` and ``resolution``
+resolve to a consistent bucket name according to the ``step`` and ``resolution``
 attributes of a schema. A bucket will contain the following data structures for
 the corresponding series type.
 
 * **series** list
 * **histogram** dictionary (map)
 * **count** integer or float
+* **guage** value
 
 Reading Data
 ------------
@@ -188,13 +190,17 @@ Supports the following parameters:
 * **interval** The named interval to read from
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform``
+is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``,
+will run all of the transform functions on the data set.
 
 Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
 and ``data`` is a data structure corresponding to the type of series, or whatever 
 ``transform`` returns.  If not using resolutions or ``condensed=True``, the length 
 of the dictionary is 1, else it will be the number of resolution buckets within
-the interval that contained data.
+the interval that contained data. If ``transform`` is a list, ``data`` will be a 
+dictionary of ``{ transform_func : transformed_data }``. If ``transform`` is a ``dict``,
+``data`` will be a dictionary of ``{ transform_name : transformed_data }``.
 
 series
 ******
@@ -215,6 +221,9 @@ where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
 and ``data`` is a data structure corresponding to the type of series, or whatever 
 ``transform`` returns.  If not using resolutions or ``condensed=True``, the dictionary
 will be of the form ``{ interval_timestamp : data }``.
+
+All variations of ``transform`` and the resulting format of ``data`` are the same
+as in ``get``.
 
 If both ``start`` and ``end`` are defined, the returned data will start and end
 on intervals including those timestamps. If only ``start`` is defined, then the
@@ -282,7 +291,7 @@ Roadmap
 
 * Round-robbin intervals for datastores without TTLs
 * Round-robbin databases: memcache (and compatible, e.g. ElastiCache), Riak,
-  DynamoDB, SimpleDB, more
+  DynamoDB, SimpleDB, GDBM, Berkeley DB, and more
 * Redis optimizations
 * Capped collection support for mongo
 * Expose the native commands for various data stores (e.g. "sismember") for
