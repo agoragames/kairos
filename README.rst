@@ -191,6 +191,7 @@ Supports the following parameters:
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
 * **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
+* **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
 
 Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
 and ``data`` is a data structure corresponding to the type of series, or whatever 
@@ -211,8 +212,9 @@ Almost identical to ``get``, supports the following parameters:
 * **end** `(optional)` The timestamp which should be in the last interval of the returned data. 
 * **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1. Ignored if both ``start`` and ``end`` are defined. If either ``start`` or ``end`` are defined, ``steps`` is inclusive of whatever interval that timestamp falls into.
 * **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
 * **collapse** `(optional)` Optionally collapse all of the data in the date range into a single result.
+* **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
 
 Returns an ordered dictionary of ``{ interval_timestamp : { resolution_timestamp: data } }``,
 where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
@@ -234,6 +236,50 @@ It is important to note that the interval timestamps in the returned data will
 not necessarily match ``start`` or ``end``. This is because of the consistent
 hashing scheme that kairos uses, such that ``start`` and ``end`` will be 
 translated into the bucket in which it can be found.
+
+Customized Reads
+----------------
+
+**ALPHA** This feature is still being explored and the API may change significantly.
+
+There are times when the data in a timeseries requires processing to
+be pushed onto the datastore. As there is no good way to do this generically,
+the ``get`` and ``series`` API support the keyword argument ``fetch`` which 
+should be a callable. The arguments and expected return type will depend on the
+datastore and the type of the timeseries.
+
+**IMPORTANT** You are welcome to change the type of the return value, but be
+wary that transforms, condense and collapse functionality may not work
+properly with the changed data types.
+
+Redis
+*****
+
+The function must be in the form of ``fetch(handle, key)``, where:
+
+* **handle** Either a Redis client or pipeline instance
+* **key** The key for the timeseries data
+
+The return value should correspond to the data type of timeseries, e.g. ``dict``
+for a histogram.
+
+Mongo
+*****
+
+The function must be in the form of ``fetch(handle, **kwargs)``, where:
+
+* **handle** A PyMongo ``Collection``
+* **spec** The (suggested) query specification
+* **sort** The (suggested) sort definition for the query
+* **method** The suggested method to use on the ``handle``
+
+The required return value depends on the value of ``method``.
+
+* **find_one** Should return a hash in the form ``{ value : <data> }``, where
+  ``<data>`` should correspond to the data type of the timeseries, e.g. ``list``
+  for a series. May directly return a result from ``pymongo.collection.find_one``.
+* **find** Should return an iterable in the form ``[ { value: <data> }, ... ]``,
+  where ``<data>`` follows the same rules as ``find_one``.
 
 
 Deleting Data

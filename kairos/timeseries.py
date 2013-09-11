@@ -349,7 +349,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
-  def get(self, name, interval, timestamp=None, condensed=False, transform=None):
+  def get(self, name, interval, timestamp=None, condensed=False, transform=None, fetch=None):
     '''
     Get the set of values for a named timeseries and interval. If timestamp
     supplied, will fetch data for the period of time in which that timestamp
@@ -388,11 +388,11 @@ class Timeseries(object):
     # minimum we'd have to rebuild the results anyway because of the potential
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
-      results = [ self._get(x, interval, config, timestamp) for x in name ]
+      results = [ self._get(x, interval, config, timestamp, fetch) for x in name ]
       # Even resolution data is "coarse" in that it's not nested
       rval = self._join_results( results, True )
     else:
-      rval = self._get( name, interval, config, timestamp )
+      rval = self._get( name, interval, config, timestamp, fetch )
 
     # If condensed, collapse the result into a single row
     if condensed and not config['coarse']:
@@ -402,13 +402,13 @@ class Timeseries(object):
         rval[k] = self._process_transform(v, transform)
     return rval
 
-  def _get(self, name, interval, config, timestamp):
+  def _get(self, name, interval, config, timestamp, fetch):
     '''
     Support for the insert per type of series.
     '''
     raise NotImplementedError()
   
-  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None, collapse=False):
+  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None, collapse=False, fetch=None):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
@@ -461,10 +461,10 @@ class Timeseries(object):
     # minimum we'd have to rebuild the results anyway because of the potential
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
-      results = [ self._series(x, interval, config, interval_buckets) for x in name ]
+      results = [ self._series(x, interval, config, interval_buckets, fetch) for x in name ]
       rval = self._join_results( results, config['coarse'] )
     else:
-      rval = self._series(name, interval, config, interval_buckets)
+      rval = self._series(name, interval, config, interval_buckets, fetch)
 
     # If fine-grained, first do the condensed pass so that it's easier to do
     # the collapse afterwards. Be careful not to run the transform if there's
@@ -495,7 +495,7 @@ class Timeseries(object):
     
     return rval
 
-  def _series(self, name, interval, config, buckets):
+  def _series(self, name, interval, config, buckets, fetch):
     '''
     Subclasses must implement fetching a series.
     '''
