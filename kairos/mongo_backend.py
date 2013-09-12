@@ -116,7 +116,7 @@ class MongoBackend(Timeseries):
     # TODO: use write preference settings if we have them
     self._client[interval].update( query, insert, upsert=True, check_keys=False )
 
-  def _get(self, name, interval, config, timestamp):
+  def _get(self, name, interval, config, timestamp, fetch):
     '''
     Get the interval.
     '''
@@ -125,7 +125,11 @@ class MongoBackend(Timeseries):
     rval = OrderedDict()
     query = {'name':name, 'interval':i_bucket}
     if config['coarse']:
-      record = self._client[interval].find_one( query )
+      if fetch:
+        record = fetch( self._client[interval], spec=query, method='find_one' )
+      else:
+        record = self._client[interval].find_one( query )
+
       if record:
         data = self._process_row( record['value'] )
         rval[ config['i_calc'].from_bucket(i_bucket) ] = data
@@ -133,7 +137,10 @@ class MongoBackend(Timeseries):
         rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
     else:
       sort = [('interval', ASCENDING), ('resolution', ASCENDING) ]
-      cursor = self._client[interval].find( spec=query, sort=sort )
+      if fetch:
+        cursor = fetch( self._client[interval], spec=query, sort=sort, method='find' )
+      else:
+        cursor = self._client[interval].find( spec=query, sort=sort )
 
       idx = 0
       for record in cursor:
@@ -142,7 +149,7 @@ class MongoBackend(Timeseries):
 
     return rval
 
-  def _series(self, name, interval, config, buckets):
+  def _series(self, name, interval, config, buckets, fetch):
     '''
     Fetch a series of buckets.
     '''
@@ -157,7 +164,10 @@ class MongoBackend(Timeseries):
     if not config['coarse']:
       sort.append( ('resolution', ASCENDING) )
     
-    cursor = self._client[interval].find( spec=query, sort=sort )
+    if fetch:
+      cursor = fetch( self._client[interva], spec=query, sort=sort, method='find' )
+    else:
+      cursor = self._client[interval].find( spec=query, sort=sort )
     for record in cursor:
       while buckets and buckets[0] < record['interval']:
         rval[ config['i_calc'].from_bucket(buckets.pop(0)) ] = self._type_no_value()

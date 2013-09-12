@@ -110,15 +110,16 @@ class RedisBackend(Timeseries):
     # enough approximation
     return len(keys)
 
-  def _get(self, name, interval, config, timestamp):
+  def _get(self, name, interval, config, timestamp, fetch):
     '''
     Fetch a single interval from redis.
     '''
     i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
+    fetch = fetch or self._type_get
     
     rval = OrderedDict()    
     if config['coarse']:
-      data = self._process_row( self._type_get(self._client, i_key) )
+      data = self._process_row( fetch(self._client, i_key) )
       rval[ config['i_calc'].from_bucket(i_bucket) ] = data
     else:
       # First fetch all of the resolution buckets for this set.
@@ -129,7 +130,7 @@ class RedisBackend(Timeseries):
       pipe = self._client.pipeline(transaction=False)
       for bucket in resolution_buckets:
         r_key = '%s:%s'%(i_key, bucket)   # TODO: make this the "resolution_bucket" closure?
-        self._type_get(pipe, r_key)
+        fetch(pipe, r_key)
       res = pipe.execute()
 
       for idx,data in enumerate(res):
@@ -138,20 +139,21 @@ class RedisBackend(Timeseries):
 
     return rval
 
-  def _series(self, name, interval, config, buckets):
+  def _series(self, name, interval, config, buckets, fetch):
     '''
     Fetch a series of buckets.
     '''
     pipe = self._client.pipeline(transaction=False)
     step = config['step']
     resolution = config.get('resolution',step)
+    fetch = fetch or self._type_get
 
     rval = OrderedDict()
     for interval_bucket in buckets:
       i_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
       if config['coarse']:
-        self._type_get(pipe, i_key)
+        fetch(pipe, i_key)
       else:
         pipe.smembers(i_key)
     res = pipe.execute()
@@ -172,7 +174,7 @@ class RedisBackend(Timeseries):
         for bucket in resolution_buckets:
           # TODO: use closures on the config for generating this resolution key
           resolution_key = '%s:%s'%(interval_key, bucket)
-          self._type_get(pipe, resolution_key)
+          fetch(pipe, resolution_key)
         
         resolution_res = pipe.execute()
         for x,data in enumerate(resolution_res):
