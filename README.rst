@@ -18,7 +18,8 @@ Overview
 Kairos provides time series storage using Redis or Mongo backends. Kairos is 
 intended to replace RRD and Whisper in situations where the scale and 
 flexibility of Redis or Mongo is required. It works with
-`gevent <http://www.gevent.org/>`_ out of the box.
+`gevent <http://www.gevent.org/>`_ out of the box. Kairos is the library
+on which `torus <https://github.com/agoragames/torus>`_ is built.
 
 Recommended for python 2.7 and later, it can work with previous versions if you
 install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
@@ -184,14 +185,17 @@ from several buckets.
 get
 ***
 
-Supports the following parameters:
+Supports the following parameters. All optional parameters are keyword arguments.
 
 * **name** The name of the statistic, or a list of names whose data will be joined together.
 * **interval** The named interval to read from
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
-* **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
+* **condensed** `(optional)` **DEPRECATED** Use ``condense`` instead. Support for this will be removed entirely in a future release.
 * **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
 * **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
+* **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
+* **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
+* **join_rows** `(optional)` Can be a callable to implement `Customized Reads`_.
 
 Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
 and ``data`` is a data structure corresponding to the type of series, or whatever 
@@ -204,17 +208,20 @@ dictionary of ``{ transform_func : transformed_data }``. If ``transform`` is a `
 series
 ******
 
-Almost identical to ``get``, supports the following parameters:
+Almost identical to ``get``, supports the following parameters. All optional parameters are keyword arguments.
 
 * **name** The name of the statistic, or a list of names whose data will be joined together.
 * **interval** The named interval to read from
 * **start** `(optional)` The timestamp which should be in the first interval of the returned data.
 * **end** `(optional)` The timestamp which should be in the last interval of the returned data. 
 * **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1. Ignored if both ``start`` and ``end`` are defined. If either ``start`` or ``end`` are defined, ``steps`` is inclusive of whatever interval that timestamp falls into.
-* **condensed** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row
+* **condensed** `(optional)` **DEPRECATED** Use ``condense`` instead. Support for this will be removed entirely in a future release.
 * **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
-* **collapse** `(optional)` Optionally collapse all of the data in the date range into a single result.
 * **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
+* **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
+* **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
+* **join_rows** `(optional)` Can be a callable to implement `Customized Reads`_.
+* **collapse** `(optional)` ``True`` will collapse all of the data in the date range into a single result. Can be a callable to implement `Customized Reads`_.
 
 Returns an ordered dictionary of ``{ interval_timestamp : { resolution_timestamp: data } }``,
 where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
@@ -243,14 +250,119 @@ Customized Reads
 **ALPHA** This feature is still being explored and the API may change significantly.
 
 There are times when the data in a timeseries requires processing to
-be pushed onto the datastore. As there is no good way to do this generically,
-the ``get`` and ``series`` API support the keyword argument ``fetch`` which 
-should be a callable. The arguments and expected return type will depend on the
-datastore and the type of the timeseries.
+be pushed onto the datastore. 
 
+There are times when one needs custom control over the reading and processing
+of data in a timeseries. As there is no good way to do this generically,
+the ``get`` and ``series`` API supports several keyword arguments to customize
+access to the data. Common use cases are to handle large sets of data that
+can be processed in the datastore, and situations where one wants to implement
+cutom analysis of the dataset such as calculating variance. 
+
+General
+*******
+
+The following functions can be overloaded with keyword parameters to ``get`` and
+``series`` (``collapse`` being only used for a series).
+
+fetch
+#####
+
+A customized database read function. The usage varies depending on the backends
+which are described in detail below.
 **IMPORTANT** You are welcome to change the type of the return value, but be
 wary that transforms, condense and collapse functionality may not work
 properly with the changed data types.
+
+
+process_row
+###########
+
+The function which handles the type casting of the data read from the backend
+and also calling the ``read_func`` if it has been defined for the time series.
+It is required that you define this function if you overload ``fetch`` such
+that the returned data type is not the same as the time series' native format
+(``dict`` for histogram, ``list`` for series, etc).
+
+The function must be in the form of ``process_row(timeseries, data)``, where:
+
+* **timeseries** The ``Timeseries`` instance.
+* **data** The row data generated by the native or ``fetch`` implementation, not
+  including any time stamps.
+
+The function may return any data type, but if it's not the native format of the
+time series, additional downstream functions may have to be overloaded.
+
+condense
+########
+
+If the ``condense`` argument is a callable, the caller can override how resolution
+data is collapsed (reduced) into a single interval. The argument will always be 
+in the form of: ::
+
+  {
+    'resolution_t0' : <data_t0>,
+    'resolution_t1' : <data_t1>,
+    ...
+    'resolution_tN' : <data_tN>,
+  }
+
+Where ``<data_tN>`` is the data returned from the native or ``fetch`` 
+implementation and passed through the native or custom ``process_row``
+implementation.
+
+The function should return a single value, optionally in the same format as 
+``<data_tN>``, but this method could also be used for calculating such
+things as rate of change or variance within a time interval.
+
+join_rows
+#########
+
+If the ``join_rows`` argument is a callable and the ``name`` parameter to ``get``
+or ``series`` is one of ``(list,tuple,set)``, this method will be called to join
+the data from several named timeseries into a single result. The argument will
+always be in the form of: ::
+
+  [
+    <data_series0>,
+    <data_series1>,
+    ...
+    <data_seriesN>
+  ]
+
+Where ``<data_series0>`` will be the data within a single timestamp window in
+the series' native format or whatever was generated by custom implementations
+of ``fetch``, ``process_row`` and/or ``condense``. It is important to note
+that not every series will contain data points within a given time interval.
+
+In addition to reducing multiple time series' worth of data within an interval
+into a single result, this method could be used to implement cross-series
+analytics such as unions, intersections and differentials.
+
+collapse
+########
+
+If the ``collapse`` argument is a callable, the caller can override how interval
+data is collapsed (reduced) into a single result. The native implementation is to
+call the ``condense`` function implemented by a time series. The arguments are
+the same as a custom ``condense`` function, as-is the expected return value.
+
+It's important to note that if ``collapse`` is defined, the series will 
+automatically be condensed as well, so if ``fetch`` is overloaded to return a 
+custom data type, then ``condense`` must also be defined. If ``collapse`` is
+``True``, the custom ``condense`` function will be used if defined.
+
+In addition to collapsing the result of a time series into a single data set,
+this method could also be used to calculate data across a time series, such as
+variance.
+
+transform
+#########
+
+As noted previously, ``transform`` can be any callable, list of names or callables,
+or a named map of transform names or callables. The transforms will be processed 
+after all previous native or custom read functions, including ``collapse``.
+
 
 Redis
 *****
@@ -261,7 +373,10 @@ The function must be in the form of ``fetch(handle, key)``, where:
 * **key** The key for the timeseries data
 
 The return value should correspond to the data type of timeseries, e.g. ``dict``
-for a histogram.
+for a histogram. One should always assume that ``handle`` is both a pipeline
+`and` a client, and ``fetch`` should return the result of, e.g. 
+``handle.hlen(...)``, but that it cannot be used to return a literal, such
+as ``lambda: h,k: { 'foo' : h.hlen(k) }``
 
 Mongo
 *****
