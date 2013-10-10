@@ -379,9 +379,9 @@ class Timeseries(object):
 
     timestamp = kwargs.get('timestamp', time.time())
     fetch = kwargs.get('fetch')
-    process_row = kwargs.get('process_row', self._process_row)
+    process_row = kwargs.get('process_row') or self._process_row
     condense = kwargs.get('condense', False)
-    join_rows = kwargs.get('join_rows', self._join)
+    join_rows = kwargs.get('join_rows') or self._join
     transform = kwargs.get('transform')
 
     # DEPRECATED handle the deprecated version of condense
@@ -435,12 +435,12 @@ class Timeseries(object):
 
     start = kwargs.get('start')
     end = kwargs.get('end')
-    steps = kwargs.get('steps', config.get('steps',1))
+    steps = kwargs.get('steps') or config.get('steps',1)
 
     fetch = kwargs.get('fetch')
-    process_row = kwargs.get('process_row', self._process_row)
+    process_row = kwargs.get('process_row') or self._process_row
     condense = kwargs.get('condense', False)
-    join_rows = kwargs.get('join_rows', self._join)
+    join_rows = kwargs.get('join_rows') or self._join
     collapse = kwargs.get('collapse', False)
     transform = kwargs.get('transform')
     # DEPRECATED handle the deprecated version of condense
@@ -470,6 +470,7 @@ class Timeseries(object):
     # time stamps and then back to buckets. :)
     start = config['i_calc'].from_bucket( start_bucket )
     end = config['i_calc'].from_bucket( end_bucket )
+    if start > end: end = start
     
     interval_buckets = config['i_calc'].buckets(start, end)
 
