@@ -169,7 +169,7 @@ class MongoBackend(Timeseries):
       sort.append( ('resolution', ASCENDING) )
     
     if fetch:
-      cursor = fetch( self._client[interva], spec=query, sort=sort, method='find' )
+      cursor = fetch( self._client[interval], spec=query, sort=sort, method='find' )
     else:
       cursor = self._client[interval].find( spec=query, sort=sort )
     for record in cursor:
