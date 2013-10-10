@@ -280,7 +280,7 @@ class Timeseries(object):
     self._intervals = kwargs.get('intervals', {})
 
     # Preprocess the intervals
-    for interval,config in self._intervals.iteritems():
+    for interval,config in self._intervals.items():
       # Copy the interval name into the configuration, needed for redis
       config['interval'] = interval
       step = config['step'] = _resolve_time( config['step'] ) # Required
@@ -349,7 +349,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
-  def get(self, name, interval, timestamp=None, condensed=False, transform=None, fetch=None):
+  def get(self, name, interval, **kwargs):
     '''
     Get the set of values for a named timeseries and interval. If timestamp
     supplied, will fetch data for the period of time in which that timestamp
@@ -373,14 +373,19 @@ class Timeseries(object):
 
     TODO: Fix this method doc
     '''
-    # TODO: support negative values of timestamp as "-N intervals", i.e.
-    # -1 on a day interval is yesterday
-    if not timestamp:
-      timestamp = time.time()
-
     config = self._intervals.get(interval)
     if not config:
       raise UnknownInterval(interval)
+
+    timestamp = kwargs.get('timestamp', time.time())
+    fetch = kwargs.get('fetch')
+    process_row = kwargs.get('process_row', self._process_row)
+    condense = kwargs.get('condense', False)
+    join_rows = kwargs.get('join_rows', self._join)
+    transform = kwargs.get('transform')
+
+    # DEPRECATED handle the deprecated version of condense
+    condense = kwargs.get('condensed',condense)
 
     # If name is a list, then join all of results. It is more efficient to
     # use a single data structure and join "in-line" but that requires a major
@@ -388,17 +393,18 @@ class Timeseries(object):
     # minimum we'd have to rebuild the results anyway because of the potential
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
-      results = [ self._get(x, interval, config, timestamp, fetch) for x in name ]
+      results = [ self._get(x, interval, config, timestamp, fetch=fetch, process_row=process_row) for x in name ]
       # Even resolution data is "coarse" in that it's not nested
-      rval = self._join_results( results, True )
+      rval = self._join_results( results, True, join_rows )
     else:
-      rval = self._get( name, interval, config, timestamp, fetch )
+      rval = self._get( name, interval, config, timestamp, fetch=fetch, process_row=process_row )
 
     # If condensed, collapse the result into a single row
-    if condensed and not config['coarse']:
-      rval = { config['i_calc'].normalize(timestamp) : self._condense(rval) }
+    if condense and not config['coarse']:
+      condense = condense if callable(condense) else self._condense
+      rval = { config['i_calc'].normalize(timestamp) : condense(rval) }
     if transform:
-      for k,v in rval.iteritems():
+      for k,v in rval.items():
         rval[k] = self._process_transform(v, transform)
     return rval
 
@@ -408,7 +414,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
   
-  def series(self, name, interval, steps=None, condensed=False, start=None, end=None, transform=None, collapse=False, fetch=None):
+  def series(self, name, interval, **kwargs):
     '''
     Return all the data in a named time series for a given interval. If steps
     not defined and there are none in the config, defaults to 1.
@@ -426,10 +432,22 @@ class Timeseries(object):
     config = self._intervals.get(interval)
     if not config:
       raise UnknownInterval(interval)
-    steps = steps if steps else config.get('steps',1)
+
+    start = kwargs.get('start')
+    end = kwargs.get('end')
+    steps = kwargs.get('steps', config.get('steps',1))
+
+    fetch = kwargs.get('fetch')
+    process_row = kwargs.get('process_row', self._process_row)
+    condense = kwargs.get('condense', False)
+    join_rows = kwargs.get('join_rows', self._join)
+    collapse = kwargs.get('collapse', False)
+    transform = kwargs.get('transform')
+    # DEPRECATED handle the deprecated version of condense
+    condense = kwargs.get('condensed',condense)
 
     # If collapse, also condense
-    if collapse: condensed=True
+    if collapse: condense = condense or True
 
     # Fugly range determination, all to get ourselves a start and end 
     # timestamp. Adjust steps argument to include the anchoring date.
@@ -461,36 +479,38 @@ class Timeseries(object):
     # minimum we'd have to rebuild the results anyway because of the potential
     # for sparse data points would result in an out-of-order result.
     if isinstance(name, (list,tuple,set)):
-      results = [ self._series(x, interval, config, interval_buckets, fetch) for x in name ]
-      rval = self._join_results( results, config['coarse'] )
+      results = [ self._series(x, interval, config, interval_buckets, fetch=fetch, process_row=process_row) for x in name ]
+      rval = self._join_results( results, config['coarse'], join_rows )
     else:
-      rval = self._series(name, interval, config, interval_buckets, fetch)
+      rval = self._series(name, interval, config, interval_buckets, fetch=fetch, process_row=process_row)
 
     # If fine-grained, first do the condensed pass so that it's easier to do
     # the collapse afterwards. Be careful not to run the transform if there's
     # going to be another pass at condensing the data.
     if not config['coarse']:
-      if condensed:
+      if condense:
+        condense = condense if callable(condense) else self._condense
         for key in rval.iterkeys():
-          data = self._condense( rval[key] )
+          data = condense( rval[key] )
           if transform and not collapse:
             data = self._process_transform(data, transform)
           rval[key] = data
       elif transform:
-        for interval,resolutions in rval.iteritems():
+        for interval,resolutions in rval.items():
           for key in resolutions.iterkeys():
             resolutions[key] = self._process_transform(resolutions[key], transform)
 
     if config['coarse'] or collapse:
       if collapse:
-        data = self._condense(rval)
+        collapse = collapse if callable(collapse) else condense if callable(condense) else self._condense
+        data = collapse(rval)
         if transform:
           rval = { rval.keys()[0] : self._process_transform(data, transform) }
         else:
           rval = { rval.keys()[0] : data }
 
       elif transform:
-        for key,data in rval.iteritems():
+        for key,data in rval.items():
           rval[key] = self._process_transform(data, transform)
     
     return rval
@@ -501,7 +521,7 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
-  def _join_results(self, results, coarse):
+  def _join_results(self, results, coarse, join):
     '''
     Join a list of results. Supports both get and series.
     '''
@@ -511,14 +531,14 @@ class Timeseries(object):
       i_keys.update( res.keys() )
     for i_key in sorted(i_keys):
       if coarse:
-        rval[i_key] = self._join( [res.get(i_key) for res in results] )
+        rval[i_key] = join( [res.get(i_key) for res in results] )
       else:
         rval[i_key] = OrderedDict()
         r_keys = set()
         for res in results:
           r_keys.update( res.get(i_key,{}).keys() )
         for r_key in sorted(r_keys):
-          rval[i_key][r_key] = self._join( [res.get(i_key,{}).get(r_key) for res in results] )
+          rval[i_key][r_key] = join( [res.get(i_key,{}).get(r_key) for res in results] )
     return rval
 
   def _process_transform(self, data, transform):
@@ -528,7 +548,7 @@ class Timeseries(object):
     if isinstance(transform, (list,tuple,set)):
       return { t : self._transform(data,t) for t in transform }
     elif isinstance(transform, dict):
-      return { tn : self._transform(data,tf) for tn,tf in transform.iteritems() }
+      return { tn : self._transform(data,tf) for tn,tf in transform.items() }
     return self._transform(data, transform)
 
   def _transform(self, data, transform):
@@ -627,7 +647,7 @@ class Histogram(Timeseries):
     returns the data unaltered.
     '''
     if transform=='mean':
-      total = sum( k*v for k,v in data.iteritems() )
+      total = sum( k*v for k,v in data.items() )
       count = sum( data.values() )
       data = float(total)/float(count) if count>0 else 0
     elif transform=='count':
@@ -637,14 +657,14 @@ class Histogram(Timeseries):
     elif transform=='max':
       data = max(data.keys() or [0])
     elif transform=='sum':
-      data = sum( k*v for k,v in data.iteritems() )
+      data = sum( k*v for k,v in data.items() )
     elif callable(transform):
       data = transform(data)
     return data
 
   def _process_row(self, data):
     rval = {}
-    for value,count in data.iteritems():
+    for value,count in data.items():
       if self._read_func: value = self._read_func(value)
       rval[ value ] = int(count)
     return rval
@@ -654,8 +674,8 @@ class Histogram(Timeseries):
     Condense by adding together all of the lists.
     '''
     rval = {}
-    for resolution,histogram in data.iteritems():
-      for value,count in histogram.iteritems():
+    for resolution,histogram in data.items():
+      for value,count in histogram.items():
         rval[ value ] = count + rval.get(value,0)
     return rval
 
@@ -666,7 +686,7 @@ class Histogram(Timeseries):
     rval = {}
     for row in rows:
       if row:
-        for value,count in row.iteritems():
+        for value,count in row.items():
           rval[ value ] = count + rval.get(value,0)
     return rval
 

@@ -116,11 +116,13 @@ class MongoBackend(Timeseries):
     # TODO: use write preference settings if we have them
     self._client[interval].update( query, insert, upsert=True, check_keys=False )
 
-  def _get(self, name, interval, config, timestamp, fetch):
+  def _get(self, name, interval, config, timestamp, **kws):
     '''
     Get the interval.
     '''
     i_bucket = config['i_calc'].to_bucket(timestamp)
+    fetch = kws.get('fetch')
+    process_row = kws.get('process_row', self._process_row)
 
     rval = OrderedDict()
     query = {'name':name, 'interval':i_bucket}
@@ -131,7 +133,7 @@ class MongoBackend(Timeseries):
         record = self._client[interval].find_one( query )
 
       if record:
-        data = self._process_row( record['value'] )
+        data = process_row( record['value'] )
         rval[ config['i_calc'].from_bucket(i_bucket) ] = data
       else:
         rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
@@ -145,11 +147,11 @@ class MongoBackend(Timeseries):
       idx = 0
       for record in cursor:
         rval[ config['r_calc'].from_bucket(record['resolution']) ] = \
-          self._process_row(record['value'])
+          process_row(record['value'])
 
     return rval
 
-  def _series(self, name, interval, config, buckets, fetch):
+  def _series(self, name, interval, config, buckets, **kws):
     '''
     Fetch a series of buckets.
     '''
@@ -158,6 +160,8 @@ class MongoBackend(Timeseries):
     rval = OrderedDict()
     step = config['step']
     resolution = config.get('resolution',step)
+    fetch = kws.get('fetch')
+    process_row = kws.get('process_row', self._process_row)
     
     query = { 'name':name, 'interval':{'$gte':buckets[0], '$lte':buckets[-1]} }
     sort = [('interval', ASCENDING)]
@@ -175,7 +179,7 @@ class MongoBackend(Timeseries):
         buckets.pop(0)
 
       i_key = config['i_calc'].from_bucket(record['interval'])
-      data = self._process_row( record['value'] )
+      data = process_row( record['value'] )
       if config['coarse']:
         rval[ i_key ] = data
       else:

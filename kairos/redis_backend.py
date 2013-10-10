@@ -110,16 +110,17 @@ class RedisBackend(Timeseries):
     # enough approximation
     return len(keys)
 
-  def _get(self, name, interval, config, timestamp, fetch):
+  def _get(self, name, interval, config, timestamp, **kws):
     '''
     Fetch a single interval from redis.
     '''
     i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
-    fetch = fetch or self._type_get
+    fetch = kws.get('fetch') or self._type_get
+    process_row = kws.get('process_row') or self._process_row
     
     rval = OrderedDict()    
     if config['coarse']:
-      data = self._process_row( fetch(self._client, i_key) )
+      data = process_row( fetch(self._client, i_key) )
       rval[ config['i_calc'].from_bucket(i_bucket) ] = data
     else:
       # First fetch all of the resolution buckets for this set.
@@ -134,19 +135,20 @@ class RedisBackend(Timeseries):
       res = pipe.execute()
 
       for idx,data in enumerate(res):
-        data = self._process_row(data)
+        data = process_row(data)
         rval[ config['r_calc'].from_bucket(resolution_buckets[idx]) ] = data
 
     return rval
 
-  def _series(self, name, interval, config, buckets, fetch):
+  def _series(self, name, interval, config, buckets, **kws):
     '''
     Fetch a series of buckets.
     '''
     pipe = self._client.pipeline(transaction=False)
     step = config['step']
     resolution = config.get('resolution',step)
-    fetch = fetch or self._type_get
+    fetch = kws.get('fetch') or self._type_get
+    process_row = kws.get('process_row') or self._process_row
 
     rval = OrderedDict()
     for interval_bucket in buckets:
@@ -165,7 +167,7 @@ class RedisBackend(Timeseries):
       interval_key = '%s%s:%s:%s'%(self._prefix, name, interval, interval_bucket)
 
       if config['coarse']:
-        data = self._process_row( data )
+        data = process_row( data )
         rval[ config['i_calc'].from_bucket(interval_bucket) ] = data
       else:
         rval[ config['i_calc'].from_bucket(interval_bucket) ] = OrderedDict()
@@ -180,7 +182,7 @@ class RedisBackend(Timeseries):
         for x,data in enumerate(resolution_res):
           i_t = config['i_calc'].from_bucket(interval_bucket)
           r_t = config['r_calc'].from_bucket(resolution_buckets[x])
-          rval[ i_t ][ r_t ] = self._process_row(data)
+          rval[ i_t ][ r_t ] = process_row(data)
 
     return rval
 
