@@ -1,3 +1,9 @@
+0.6.1
+=====
+
+Fix cases where keyword arguments are defined with "None"
+Fix case where series() is called with with steps=0 
+
 0.6.0
 =====
 
