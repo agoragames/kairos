@@ -1,8 +1,14 @@
+0.6.2
+=====
+
+Fix reference to interval when using a custom fetch function in mongo.
+
 0.6.1
 =====
 
-Fix cases where keyword arguments are defined with "None"
-Fix case where series() is called with with steps=0 
+Fix cases where keyword arguments are defined with "None".
+
+Fix case where series() is called with with steps=0.
 
 0.6.0
 =====
