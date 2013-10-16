@@ -3,7 +3,7 @@
 -r requirements.pip
 
 # Required redis 
-redis==2.4.11
+redis==2.8
 hiredis>=0.1.0
 
 # Required pymongo
