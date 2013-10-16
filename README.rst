@@ -395,6 +395,14 @@ The required return value depends on the value of ``method``.
 * **find** Should return an iterable in the form ``[ { value: <data> }, ... ]``,
   where ``<data>`` follows the same rules as ``find_one``.
 
+Re-implementing the default functionality would look like: ::
+
+  def mongo_fetch(handle, spec, sort, method):
+    if method=='find':
+      return handle.find( spec=spec, sort=sort )
+    elif method=='find_one':
+      return handle.find_one( spec )
+
 
 Deleting Data
 -------------
