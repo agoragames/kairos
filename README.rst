@@ -1,11 +1,11 @@
-====================================================
-Kairos - Time series data storage in Redis and Mongo
-====================================================
+=================================
+Kairos - Time series data storage
+=================================
 
 :Version: 0.6.3
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
-:Keywords: python, redis, mongo, time, timeseries, rrd, gevent, statistics
+:Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, time, timeseries, rrd, gevent, statistics
 
 .. contents::
     :local:
@@ -15,9 +15,9 @@ Kairos - Time series data storage in Redis and Mongo
 Overview
 ========
 
-Kairos provides time series storage using Redis or Mongo backends. Kairos is 
+Kairos provides time series storage using Redis, Mongo or SQL backends. Kairos is 
 intended to replace RRD and Whisper in situations where the scale and 
-flexibility of Redis or Mongo is required. It works with
+flexibility of other data stores is required. It works with
 `gevent <http://www.gevent.org/>`_ out of the box. Kairos is the library
 on which `torus <https://github.com/agoragames/torus>`_ is built.
 
@@ -58,6 +58,26 @@ Mongo
   import pymongo
 
   client = pymongo.MongoClient('localhost')
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+SQL
+---
+
+::
+
+  from kairos import Timeseries
+  from sqlalchemy import create_engine
+
+  client = create_engine('sqlite:///:memory:')
   t = Timeseries(client, type='histogram', read_func=int, intervals={
     'minute':{
       'step':60,            # 60 seconds

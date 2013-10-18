@@ -22,7 +22,7 @@ setup(
     license="LICENSE.txt",
     description='Time series data storage using Redis and Mongo',
     long_description=open('README.rst').read(),
-    keywords=['python', 'redis', 'mongo', 'time', 'timeseries', 'rrd', 'gevent', 'statistics'],
+    keywords=['python', 'redis', 'mongo', 'sql', 'mysql', 'sqlite', 'postgresql', 'time', 'timeseries', 'rrd', 'gevent', 'statistics'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
