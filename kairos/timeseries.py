@@ -172,6 +172,8 @@ class GregorianTime(object):
       bucket = self.to_bucket(start, step)
       bucket_time = self.from_bucket( bucket )
       if bucket_time >= end:
+        if bucket_time==end:
+          rval.append( bucket )
         break
       rval.append( bucket )
       step += 1
