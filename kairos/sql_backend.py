@@ -128,12 +128,12 @@ class SqlSeries(SqlBackend, Series):
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlSeries,self).__init__(*a, **kwargs)
     self._table = Table('series', self._metadata,
-      Column('name', String, nullable=False),       # stat name
-      Column('interval', String, nullable=False),   # interval name
-      Column('insert_time', Float, nullable=False), # to preserve order
-      Column('i_time', Integer, nullable=False),    # interval timestamp
-      Column('r_time', Integer, nullable=True),     # resolution timestamp
-      Column('value', Float, nullable=False)        # datas
+      Column('name', String(255), nullable=False),      # stat name
+      Column('interval', String(255), nullable=False),  # interval name
+      Column('insert_time', Float, nullable=False),     # to preserve order
+      Column('i_time', Integer, nullable=False),        # interval timestamp
+      Column('r_time', Integer, nullable=True),         # resolution timestamp
+      Column('value', Float, nullable=False)            # datas
     )
     self._metadata.create_all(self._client)
   
@@ -188,12 +188,12 @@ class SqlHistogram(SqlBackend, Histogram):
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlHistogram,self).__init__(*a, **kwargs)
     self._table = Table('histogram', self._metadata,
-      Column('name', String, nullable=False),       # stat name
-      Column('interval', String, nullable=False),   # interval name
-      Column('i_time', Integer, nullable=False),    # interval timestamp
-      Column('r_time', Integer, nullable=True),     # resolution timestamp
-      Column('value', Float, nullable=False),       # histogram keys
-      Column('count', Integer, nullable=False),     # key counts
+      Column('name', String(255), nullable=False),      # stat name
+      Column('interval', String(255), nullable=False),  # interval name
+      Column('i_time', Integer, nullable=False),        # interval timestamp
+      Column('r_time', Integer, nullable=True),         # resolution timestamp
+      Column('value', Float, nullable=False),           # histogram keys
+      Column('count', Integer, nullable=False),         # key counts
 
       # Use a constraint for transaction-less insert vs update
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', 'value', name='unique_value')
@@ -275,11 +275,11 @@ class SqlCount(SqlBackend, Count):
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlCount,self).__init__(*a, **kwargs)
     self._table = Table('count', self._metadata,
-      Column('name', String, nullable=False),       # stat name
-      Column('interval', String, nullable=False),   # interval name
-      Column('i_time', Integer, nullable=False),    # interval timestamp
-      Column('r_time', Integer, nullable=True),     # resolution timestamp
-      Column('count', Integer, nullable=False),     # key counts
+      Column('name', String(255), nullable=False),      # stat name
+      Column('interval', String(255), nullable=False),  # interval name
+      Column('i_time', Integer, nullable=False),        # interval timestamp
+      Column('r_time', Integer, nullable=True),         # resolution timestamp
+      Column('count', Integer, nullable=False),         # key counts
 
       # Use a constraint for transaction-less insert vs update
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', name='unique_count')
@@ -359,11 +359,11 @@ class SqlGauge(SqlBackend, Gauge):
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlGauge,self).__init__(*a, **kwargs)
     self._table = Table('gauge', self._metadata,
-      Column('name', String, nullable=False),       # stat name
-      Column('interval', String, nullable=False),   # interval name
-      Column('i_time', Integer, nullable=False),    # interval timestamp
-      Column('r_time', Integer, nullable=True),     # resolution timestamp
-      Column('value', Float, nullable=False),     # key counts
+      Column('name', String(255), nullable=False),      # stat name
+      Column('interval', String(255), nullable=False),  # interval name
+      Column('i_time', Integer, nullable=False),        # interval timestamp
+      Column('r_time', Integer, nullable=True),         # resolution timestamp
+      Column('value', Float, nullable=False),           # key counts
 
       # Use a constraint for transaction-less insert vs update
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', name='unique_count')
