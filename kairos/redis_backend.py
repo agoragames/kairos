@@ -3,14 +3,13 @@ Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
-from exceptions import *
+from .exceptions import *
+from .timeseries import *
 
 import operator
 import sys
 import time
 import re
-
-from timeseries import *
 
 class RedisBackend(Timeseries):
   '''

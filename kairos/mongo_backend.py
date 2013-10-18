@@ -3,7 +3,8 @@ Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
-from exceptions import *
+from .exceptions import *
+from .timeseries import *
 
 import operator
 import sys
@@ -12,8 +13,6 @@ import re
 import pymongo
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime
-
-from timeseries import *
 
 class MongoBackend(Timeseries):
   '''
@@ -45,7 +44,7 @@ class MongoBackend(Timeseries):
     super(MongoBackend,self).__init__(client, **kwargs)
     
     # Define the indices for lookups and TTLs
-    for interval,config in self._intervals.iteritems():
+    for interval,config in self._intervals.items():
       # TODO: the interval+(resolution+)name combination should be unique,
       # but should the index be defined as such? Consider performance vs.
       # correctness tradeoff. Also will need to determine if we need to 
@@ -85,7 +84,7 @@ class MongoBackend(Timeseries):
     # testing can be done. Even then, there may be a variety of factors which
     # make the results situation-dependent.
     # TODO: confirm that this is in fact using the indices correctly.
-    for interval,config in self._intervals.iteritems():
+    for interval,config in self._intervals.items():
       self._insert_data(name, value, timestamp, interval, config)
       steps = intervals
       if steps<0:
@@ -122,7 +121,7 @@ class MongoBackend(Timeseries):
     '''
     i_bucket = config['i_calc'].to_bucket(timestamp)
     fetch = kws.get('fetch')
-    process_row = kws.get('process_row', self._process_row)
+    process_row = kws.get('process_row') or self._process_row
 
     rval = OrderedDict()
     query = {'name':name, 'interval':i_bucket}
@@ -200,7 +199,7 @@ class MongoBackend(Timeseries):
     # TODO: confirm that this does not use the combo index and determine
     # performance implications.
     num_deleted = 0
-    for interval,config in self._intervals.iteritems():
+    for interval,config in self._intervals.items():
       # TODO: use write preference settings if we have them
       num_deleted += self._client[interval].remove( {'name':name} )['n']
     return num_deleted
@@ -210,30 +209,17 @@ class MongoSeries(MongoBackend, Series):
   def _insert_type(self, spec, value):
     spec['$push'] = {'value':value}
 
-  def _type_no_value(self):
-    return []
-
 class MongoHistogram(MongoBackend, Histogram):
   
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value.%s'%(value): 1}
-
-  def _type_no_value(self):
-    return {}
 
 class MongoCount(MongoBackend, Count):
   
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value':value}
 
-  def _type_no_value(self):
-    return 0
-
 class MongoGauge(MongoBackend, Gauge):
   
   def _insert_type(self, spec, value):
     spec['$set']['value'] = value
-
-  def _type_no_value(self):
-    # TODO: resolve this disconnect with redis backend
-    return 0

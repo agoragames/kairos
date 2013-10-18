@@ -221,7 +221,7 @@ class SeriesTest(Chai):
 
   def test_get(self):
     # 2 hours worth of data, value is same asV timestamp
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t, timestamp=_time(t) )
 
     ###
@@ -272,15 +272,15 @@ class SeriesTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3721, 3840):
+    for t in range(3721, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -327,7 +327,7 @@ class SeriesTest(Chai):
 
   def test_series(self):
     # 2 hours worth of data, value is same asV timestamp
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t, timestamp=_time(t) )
 
     ###
@@ -404,15 +404,15 @@ class SeriesTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3720, 3840):
+    for t in range(3720, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -509,7 +509,7 @@ class HistogramTest(Chai):
   
   def test_get(self):
     # 2 hours worth of data, value is same asV timestamp
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t/2, timestamp=_time(t) )
 
     ###
@@ -545,15 +545,15 @@ class HistogramTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3721, 3840):
+    for t in range(3721, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -599,7 +599,7 @@ class HistogramTest(Chai):
 
   def test_series(self):
     # 2 hours worth of data, value is same asV timestamp
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t/2, timestamp=_time(t) )
 
     ###
@@ -609,10 +609,10 @@ class HistogramTest(Chai):
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
     assert_equals( list(range(0,30)), sorted(interval[_time(0)].keys()) )
     assert_equals( 1, interval[_time(0)][0] )
-    for k in xrange(1,30):
+    for k in range(1,30):
       assert_equals(2, interval[_time(0)][k])
     assert_equals( list(range(120,150)), sorted(interval[_time(240)].keys()) )
-    for k in xrange(120,150):
+    for k in range(120,150):
       assert_equals(2, interval[_time(240)][k])
     
     interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
@@ -623,7 +623,7 @@ class HistogramTest(Chai):
     interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
     assert_equals( map(_time, [0]), interval.keys() )
     assert_equals( list(range(0,150)), sorted(interval[_time(0)].keys()) )
-    for k in xrange(1,150):
+    for k in range(1,150):
       assert_equals(2, interval[_time(0)][k])
     
     ###
@@ -657,15 +657,15 @@ class HistogramTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3720, 3840):
+    for t in range(3720, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -759,7 +759,7 @@ class CountTest(Chai):
   
   def test_get(self):
     # 2 hours worth of data
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', 1, timestamp=_time(t) )
 
     ###
@@ -795,15 +795,15 @@ class CountTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3721, 3840):
+    for t in range(3721, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -840,7 +840,7 @@ class CountTest(Chai):
 
   def test_series(self):
     # 2 hours worth of data
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', 1, timestamp=_time(t) )
 
     ###
@@ -889,15 +889,15 @@ class CountTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3720, 3840):
+    for t in range(3720, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -966,7 +966,7 @@ class GaugeTest(Chai):
   
   def test_get(self):
     # 2 hours worth of data
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t, timestamp=_time(t) )
 
     ###
@@ -1002,15 +1002,15 @@ class GaugeTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3721, 3840):
+    for t in range(3721, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -1047,7 +1047,7 @@ class GaugeTest(Chai):
 
   def test_series(self):
     # 2 hours worth of data
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t, timestamp=_time(t) )
 
     ###
@@ -1096,15 +1096,15 @@ class GaugeTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t, timestamp=_time(t) )
-    for t in xrange(3720, 3840):
+    for t in range(3720, 3840):
       self.series.insert( 'test1', t, timestamp=_time(t) )
 
     ###
@@ -1172,7 +1172,7 @@ class SetTest(Chai):
   def test_get(self):
     # 2 hours worth of data. Trim some bits from data resolution to assert
     # proper set behavior
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t/15, timestamp=_time(t) )
 
     ###
@@ -1206,7 +1206,7 @@ class SetTest(Chai):
   def test_series(self):
     # 2 hours worth of data. Trim some bits from data resolution to assert
     # proper set behavior
-    for t in xrange(1, 7200):
+    for t in range(1, 7200):
       self.series.insert( 'test', t/15, timestamp=_time(t) )
 
     ###
@@ -1255,15 +1255,15 @@ class SetTest(Chai):
     # a few more minutes in test2
     self.series.delete('test1')
     self.series.delete('test2')
-    for t in xrange(1, 120):
+    for t in range(1, 120):
       self.series.insert( 'test1', t/15, timestamp=_time(t) )
       self.series.insert( 'test2', t/15, timestamp=_time(t) )
-    for t in xrange(3600, 3720):
+    for t in range(3600, 3720):
       self.series.insert( 'test1', t/15, timestamp=_time(t) )
       self.series.insert( 'test2', t/15, timestamp=_time(t) )
-    for t in xrange(120, 240):
+    for t in range(120, 240):
       self.series.insert( 'test1', t/15, timestamp=_time(t) )
-    for t in xrange(3720, 3840):
+    for t in range(3720, 3840):
       self.series.insert( 'test1', t/15, timestamp=_time(t) )
 
     ###

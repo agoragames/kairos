@@ -7,7 +7,7 @@ import datetime
 import redis
 from chai import Chai
 
-import helpers
+from . import helpers
 
 class RedisSeriesTest(helpers.SeriesTest):
 

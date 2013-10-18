@@ -7,7 +7,7 @@ import datetime
 from pymongo import *
 from chai import Chai
 
-import helpers
+from . import helpers
 
 class MongoSeriesTest(helpers.SeriesTest):
 

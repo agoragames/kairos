@@ -403,6 +403,37 @@ Re-implementing the default functionality would look like: ::
     elif method=='find_one':
       return handle.find_one( spec )
 
+SQL
+***
+
+The function must be in the form ``fetch(connection, table, name, i_time, i_end)``, where:
+
+* **connection** A SQLAlchemy ``Connection``
+* **table** A SQLAlchemy ``Table``
+* **name** The name of the stat to fetch
+* **interval** The interval of the stat to fetch
+* **i_time** The interval timestamp key
+* **i_end** (optional) For a series, the ending timestamp key
+
+The return value should be in the form of ::
+
+  { 
+    'interval_t0' : {
+      'resolution_t0t0' : <data_t0t0>,
+      'resolution_t0t1' : <data_t0t1>,
+      ...
+      'resolution_t0tN' : <data_t0tN>
+    },
+    'interval_t1' : { ... },
+    ...
+    'interval_tN' : { ... },
+  }
+
+If the series doesn't use resolutions, then ``resolution_tNtN`` should be 
+``None``, and so each interval will be in the form 
+``{ 'interval_tN: { None : <data_tN> } }``. This is inherent in the way that
+data is stored within the tables.
+
 
 Deleting Data
 -------------

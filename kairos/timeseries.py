@@ -3,9 +3,9 @@ Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
-from exceptions import *
-from datetime import datetime, timedelta
+from .exceptions import *
 
+from datetime import datetime, timedelta
 import operator
 import sys
 import time
@@ -32,6 +32,12 @@ SIMPLE_TIMES = {
 }
 
 GREGORIAN_TIMES = set(['daily', 'weekly', 'monthly', 'yearly'])
+
+# Test python3 compatibility
+try:
+  x = long(1)
+except NameError:
+  long = int
 
 def _resolve_time(value):
   '''
@@ -165,7 +171,7 @@ class GregorianTime(object):
     while True:
       bucket = self.to_bucket(start, step)
       bucket_time = self.from_bucket( bucket )
-      if bucket_time > end:
+      if bucket_time >= end:
         break
       rval.append( bucket )
       step += 1
@@ -592,6 +598,9 @@ class Series(Timeseries):
   Simple time series where all data is stored in a list for each interval.
   '''
 
+  def _type_no_value(self):
+    return []
+
   def _transform(self, data, transform):
     '''
     Transform the data. If the transform is not supported by this series,
@@ -641,6 +650,9 @@ class Histogram(Timeseries):
   same value within an interval. It is up to the user to determine the precision
   and distribution of the data points within the histogram.
   '''
+
+  def _type_no_value(self):
+    return {}
 
   def _transform(self, data, transform):
     '''
@@ -696,6 +708,9 @@ class Count(Timeseries):
   Time series that simply increments within each interval.
   '''
 
+  def _type_no_value(self):
+    return 0
+
   def _transform(self, data, transform):
     '''
     Transform the data. If the transform is not supported by this series,
@@ -732,6 +747,10 @@ class Gauge(Timeseries):
   '''
   Time series that stores the last value.
   '''
+
+  def _type_no_value(self):
+    # TODO: resolve this disconnect with redis backend
+    return 0
 
   def _transform(self, data, transform):
     '''
@@ -816,13 +835,20 @@ class Set(Timeseries):
 
 # Load the backends after all the timeseries had been defined.
 try:
-  from redis_backend import RedisBackend
+  from .redis_backend import RedisBackend
   BACKENDS['redis'] = RedisBackend
 except ImportError as e:
-  print 'Redis backend not loaded,', e
+  print('Redis backend not loaded,', e)
 
 try:
-  from mongo_backend import MongoBackend
+  from .mongo_backend import MongoBackend
   BACKENDS['pymongo'] = MongoBackend
 except ImportError as e:
-  print 'Mongo backend not loaded,', e
+  print('Mongo backend not loaded,', e)
+
+try:
+  #from sqlalchemy.engine.base import Engine
+  from .sql_backend import SqlBackend
+  BACKENDS['sqlalchemy'] = SqlBackend
+except ImportError as e:
+  print('SQL backend not loaded,', e)
