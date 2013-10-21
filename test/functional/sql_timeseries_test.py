@@ -8,27 +8,32 @@ import os
 from sqlalchemy import create_engine
 
 from . import helpers
-
+from .helpers import unittest, os
 SQL_HOST = os.environ.get('SQL_HOST', 'sqlite:///:memory:')
-class SqlSeriesTest(helpers.SeriesTest):
+
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
     self.client = create_engine(SQL_HOST, echo=False)
     super(SqlSeriesTest,self).setUp()
 
-class SqlHistogramTest(helpers.HistogramTest):
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlHistogramTest(helpers.HistogramHelper):
 
   def setUp(self):
     self.client = create_engine(SQL_HOST, echo=False)
     super(SqlHistogramTest,self).setUp()
 
-class SqlCountTest(helpers.CountTest):
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlCountTest(helpers.CountHelper):
 
   def setUp(self):
     self.client = create_engine(SQL_HOST, echo=False)
     super(SqlCountTest,self).setUp()
 
-class SqlGaugeTest(helpers.GaugeTest):
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlGaugeTest(helpers.GaugeHelper):
 
   def setUp(self):
     self.client = create_engine(SQL_HOST, echo=False)

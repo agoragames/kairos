@@ -8,38 +8,45 @@ import redis
 from chai import Chai
 
 from . import helpers
+from .helpers import unittest, os
 
-class RedisSeriesTest(helpers.SeriesTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisSeriesTest,self).setUp()
 
-class RedisHistogramTest(helpers.HistogramTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisHistogramTest(helpers.HistogramHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisHistogramTest,self).setUp()
 
-class RedisCountTest(helpers.CountTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisCountTest(helpers.CountHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisCountTest,self).setUp()
 
-class RedisGaugeTest(helpers.GaugeTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisGaugeTest(helpers.GaugeHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisGaugeTest,self).setUp()
 
-class RedisSetTest(helpers.SetTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisSetTest(helpers.SetHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisSetTest,self).setUp()
 
-class RedisGregorianTest(helpers.GregorianTest):
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisGregorianTest(helpers.GregorianHelper):
 
   def setUp(self):
     self.client = redis.Redis('localhost')

@@ -502,6 +502,19 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
 
   $ nosetests
 
+The test suite can be controlled through several environment variables, all
+defaulting to ``true``. 
+
+* **TEST_REDIS** *true*
+* **TEST_MONGO** *true*
+* **TEST_SQL** *true*
+* **TEST_SERIES** *true*
+* **TEST_HISTOGRAM** *true*
+* **TEST_COUNT** *true*
+* **TEST_GAUGE** *true*
+* **TEST_SET** *true*
+* **SQL_HOST** *sqlite:///:memory:*
+
 
 Roadmap
 =======
