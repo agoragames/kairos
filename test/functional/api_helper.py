@@ -35,19 +35,15 @@ class ApiHelper(Chai):
 
   def test_properties(self):
     self.series.insert( 'test', 32, timestamp=_time(0) )
-    self.series.insert( 'test1', 32, timestamp=_time(0) )
-    self.series.insert( 'test2', 32, timestamp=_time(0) )
     self.series.insert( 'test', 32, timestamp=_time(60) )
     self.series.insert( 'test', 32, timestamp=_time(600) )
 
-    try:
-      res = self.series.properties('test')
-      assert_equals( _time(0), res['minute']['first'] )
-      assert_equals( _time(600), res['minute']['last'] )
-      assert_equals( _time(0), res['hour']['first'] )
-      assert_equals( _time(0), res['hour']['last'] )
+    res = self.series.properties('test')
+    assert_equals( _time(0), res['minute']['first'] )
+    assert_equals( _time(600), res['minute']['last'] )
+    assert_equals( _time(0), res['hour']['first'] )
+    assert_equals( _time(0), res['hour']['last'] )
 
-    finally:
-      self.series.delete('test')
-      self.series.delete('test1')
-      self.series.delete('test2')
+    self.series.delete('test')
+    self.series.delete('test1')
+    self.series.delete('test2')
