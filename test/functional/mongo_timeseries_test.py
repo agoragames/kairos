@@ -11,6 +11,20 @@ from . import helpers
 from .helpers import unittest, os
 
 @unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoApiTest(helpers.ApiHelper):
+
+  def setUp(self):
+    self.client = MongoClient('localhost')
+    super(MongoApiTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
+class MongoGregorianTest(helpers.GregorianHelper):
+
+  def setUp(self):
+    self.client = MongoClient('localhost')
+    super(MongoGregorianTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
 class MongoSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
@@ -37,10 +51,3 @@ class MongoGaugeTest(helpers.GaugeHelper):
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoGaugeTest,self).setUp()
-
-@unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
-class MongoGregorianTest(helpers.GregorianHelper):
-
-  def setUp(self):
-    self.client = MongoClient('localhost')
-    super(MongoGregorianTest,self).setUp()

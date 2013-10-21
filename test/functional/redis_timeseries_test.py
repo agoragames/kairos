@@ -11,6 +11,20 @@ from . import helpers
 from .helpers import unittest, os
 
 @unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisApiTest(helpers.ApiHelper):
+
+  def setUp(self):
+    self.client = redis.Redis('localhost')
+    super(RedisApiTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
+class RedisGregorianTest(helpers.GregorianHelper):
+
+  def setUp(self):
+    self.client = redis.Redis('localhost')
+    super(RedisGregorianTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
 class RedisSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
@@ -44,10 +58,3 @@ class RedisSetTest(helpers.SetHelper):
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisSetTest,self).setUp()
-
-@unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
-class RedisGregorianTest(helpers.GregorianHelper):
-
-  def setUp(self):
-    self.client = redis.Redis('localhost')
-    super(RedisGregorianTest,self).setUp()

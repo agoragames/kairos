@@ -1,3 +1,8 @@
+discover-api
+============
+
+Added `Timeseries.list()` to get all of the stat names in a store.
+
 0.6.3
 =====
 

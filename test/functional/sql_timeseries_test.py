@@ -12,6 +12,20 @@ from .helpers import unittest, os
 SQL_HOST = os.environ.get('SQL_HOST', 'sqlite:///:memory:')
 
 @unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlApiTest(helpers.ApiHelper):
+
+  def setUp(self):
+    self.client = create_engine(SQL_HOST, echo=False)
+    super(SqlApiTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
+class SqlGregorianTest(helpers.GregorianHelper):
+
+  def setUp(self):
+    self.client = create_engine(SQL_HOST, echo=False)
+    super(SqlGregorianTest,self).setUp()
+
+@unittest.skipUnless( os.environ.get('TEST_SQL','true').lower()=='true', 'skipping sql' )
 class SqlSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):

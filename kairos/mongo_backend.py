@@ -64,6 +64,25 @@ class MongoBackend(Timeseries):
         self._client[interval].ensure_index( 
           [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
 
+  def list(self):
+    rval = set()
+    for interval,config in self._intervals.items():
+      rval.update( self._client.command({'distinct':interval, 'key':'name'})['values'] )
+    return list(rval)
+
+  def properties(self, name):
+    rval = {}
+    for interval,config in self._intervals.items():
+      rval.setdefault(interval, {})
+      query = {'name':name}
+      res = self._client[interval].find_one(query, sort=[('interval',ASCENDING)])
+      rval[interval]['first'] = config['i_calc'].from_bucket(res['interval'])
+      res = self._client[interval].find_one(query, sort=[('interval',DESCENDING)])
+      rval[interval]['last'] = config['i_calc'].from_bucket(res['interval'])
+
+    return rval
+      
+
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the new value.

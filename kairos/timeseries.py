@@ -315,6 +315,18 @@ class Timeseries(object):
       config['expire'] = interval_calc.ttl( steps )
       config['coarse'] = (resolution==step)
 
+  def list(self):
+    '''
+    List all of the stat names that are stored.
+    '''
+    raise NotImplementedError()
+
+  def properties(self, name):
+    '''
+    Get the properties of a stat.
+    '''
+    raise NotImplementedError()
+
   def insert(self, name, value, timestamp=None, intervals=0):
     '''
     Insert a value for the timeseries "name". For each interval in the 

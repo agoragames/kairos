@@ -2,6 +2,7 @@
 Implementation of functional tests independent of backend
 '''
 
+from .api_helper import ApiHelper
 from .gregorian_helper import GregorianHelper
 from .series_helper import SeriesHelper
 from .histogram_helper import HistogramHelper
