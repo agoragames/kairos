@@ -7,7 +7,7 @@ from .exceptions import *
 from .timeseries import *
 
 from sqlalchemy import Table, Column, Integer, String, Float, MetaData, UniqueConstraint
-from sqlalchemy.sql import select, update, insert, and_, or_, not_
+from sqlalchemy.sql import select, update, insert, distinct, asc, desc, and_, or_, not_
 
 import time
 
@@ -32,6 +32,42 @@ class SqlBackend(Timeseries):
     '''
     self._metadata = MetaData()
     super(SqlBackend,self).__init__(client, **kwargs)
+
+  def list(self):
+    connection = self._client.connect()
+    rval = set()
+    stmt = select([distinct(self._table.c.name)])
+
+    for row in connection.execute(stmt):
+      rval.add(row['name'])
+    return list(rval)
+
+  def properties(self, name):
+    connection = self._client.connect()
+    rval = {}
+
+    for interval,config in self._intervals.items():
+      rval.setdefault(interval, {})
+
+      stmt = select([self._table.c.i_time]).where(
+        and_(
+          self._table.c.name==name,
+          self._table.c.interval==interval
+        )
+      ).order_by( asc(self._table.c.i_time) )
+      rval[interval]['first'] = config['i_calc'].from_bucket(
+        connection.execute(stmt).first()['i_time'] )
+      
+      stmt = select([self._table.c.i_time]).where(
+        and_(
+          self._table.c.name==name,
+          self._table.c.interval==interval
+        )
+      ).order_by( desc(self._table.c.i_time) )
+      rval[interval]['last'] = config['i_calc'].from_bucket(
+        connection.execute(stmt).first()['i_time'] )
+
+    return rval
 
   def _insert(self, name, value, timestamp, intervals):
     '''

@@ -51,6 +51,38 @@ class RedisBackend(Timeseries):
 
     return i_bucket, r_bucket, i_key, r_key
 
+  def list(self):
+    keys = self._client.keys()
+    rval = set()
+    for key in keys:
+      key = key[len(self._prefix):]
+      rval.add( key.split(':')[0] )
+    return list(rval)
+
+  def properties(self, name):
+    prefix = '%s%s:'%(self._prefix,name)
+    keys = self._client.keys('%s*'%(prefix))
+    rval = {}
+
+    for key in keys:
+      key = key[len(prefix):].split(':')
+      rval.setdefault( key[0], {} )
+      if 'first' in rval[key[0]]:
+        rval[key[0]]['first'] = min(rval[key[0]]['first'], int(key[1]))
+      else:
+        rval[key[0]]['first'] = int(key[1])
+      if 'last' in rval[key[0]]:
+        rval[key[0]]['last'] = max(rval[key[0]]['last'], int(key[1]))
+      else:
+        rval[key[0]]['last'] = int(key[1])
+
+    for interval, properties in rval.items():
+      config = self._intervals[interval]
+      properties['first'] = config['i_calc'].from_bucket( properties['first'] )
+      properties['last'] = config['i_calc'].from_bucket( properties['last'] )
+
+    return rval
+
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the value.

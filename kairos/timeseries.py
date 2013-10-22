@@ -143,7 +143,7 @@ class GregorianTime(object):
         year += steps
         dt = datetime(year=year, month=1, day=1)
 
-    return dt.strftime( self.FORMATS[self._step] )
+    return int(dt.strftime( self.FORMATS[self._step] ))
 
   def from_bucket(self, bucket):
     '''
@@ -152,6 +152,7 @@ class GregorianTime(object):
     # NOTE: this is due to a bug somewhere in strptime that does not process
     # the week number of '%Y%U' correctly. That bug could be very specific to
     # the combination of python and ubuntu that I was testing.
+    bucket = str(bucket)
     if self._step == 'weekly':
       year, week = bucket[:4], bucket[4:]
       normal = datetime(year=int(year), month=1, day=1) + timedelta(weeks=int(week))
@@ -314,6 +315,18 @@ class Timeseries(object):
       
       config['expire'] = interval_calc.ttl( steps )
       config['coarse'] = (resolution==step)
+
+  def list(self):
+    '''
+    List all of the stat names that are stored.
+    '''
+    raise NotImplementedError()
+
+  def properties(self, name):
+    '''
+    Get the properties of a stat.
+    '''
+    raise NotImplementedError()
 
   def insert(self, name, value, timestamp=None, intervals=0):
     '''

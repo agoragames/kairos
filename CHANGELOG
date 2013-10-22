@@ -1,3 +1,11 @@
+discover-api
+============
+
+Added `Timeseries.list()` to get all of the stat names in a store.
+
+Changed data type for gregorian time stamps. This will possibly require
+updates for any gregorian data already stored in mongo.
+
 0.6.3
 =====
 
