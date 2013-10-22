@@ -77,12 +77,17 @@ class RedisBackend(Timeseries):
         rval[key[0]]['last'] = int(key[1])
 
     for interval, properties in rval.items():
-      config = self._intervals[interval]
-      properties['first'] = config['i_calc'].from_bucket( properties['first'] )
-      properties['last'] = config['i_calc'].from_bucket( properties['last'] )
+      # It's possible that there is data stored for which an interval
+      # is not defined.
+      if interval in self._intervals:
+        config = self._intervals[interval]
+        properties['first'] = config['i_calc'].from_bucket( properties['first'] )
+        properties['last'] = config['i_calc'].from_bucket( properties['last'] )
+      else:
+        rval.pop(interval)
 
     return rval
-
+  
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the value.

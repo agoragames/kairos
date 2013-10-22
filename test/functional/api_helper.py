@@ -17,6 +17,9 @@ class ApiHelper(Chai):
         'hour' : {
           'step' : 3600,
           'resolution' : 60,
+        },
+        'bulk-hour' : {
+          'step' : 3600,
         }
       } )
 
@@ -45,5 +48,30 @@ class ApiHelper(Chai):
     assert_equals( _time(0), res['hour']['last'] )
 
     self.series.delete('test')
-    self.series.delete('test1')
-    self.series.delete('test2')
+
+  def test_iterate(self):
+    self.series.insert( 'test', 32, timestamp=_time(0) )
+    self.series.insert( 'test', 42, timestamp=_time(60) )
+    self.series.insert( 'test', 52, timestamp=_time(600) )
+
+    # There should be a result for every possible step between first and last
+    res = list(self.series.iterate('test','minute'))
+    assert_equals( 11, len(res) )
+    assert_equals( (_time(0),[32]), res[0] )
+    assert_equals( (_time(60),[42]), res[1] )
+    assert_equals( (_time(120),[]), res[2] )
+    assert_equals( (_time(600),[52]), res[-1] )
+
+    # With resolutions, there should be a result only for where there's data      
+    res = list(self.series.iterate('test','hour'))
+    assert_equals( 3, len(res) )
+    assert_equals( (_time(0),[32]), res[0] )
+    assert_equals( (_time(60),[42]), res[1] )
+    assert_equals( (_time(600),[52]), res[2] )
+
+    # Without resolutions, there should be a single result
+    res = list(self.series.iterate('test','bulk-hour'))
+    assert_equals( 1, len(res) )
+    assert_equals( (_time(0),[32,42,52]), res[0] )
+
+    self.series.delete('test')

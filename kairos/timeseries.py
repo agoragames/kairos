@@ -370,6 +370,32 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
+  def iterate(self, name, interval, **kwargs):
+    '''
+    Returns a generator that iterates over all the intervals and returns
+    data for various timestamps, in the form:
+
+      ( unix_timestamp, data )
+
+    This will check for all timestamp buckets that might exist between
+    the first and last timestamp in a series. Each timestamp bucket will
+    be fetched separately to keep this memory efficient, at the cost of
+    extra trips to the data store.
+
+    Keyword arguments are the same as get().
+    '''
+    config = self._intervals.get(interval)
+    if not config:
+      raise UnknownInterval(interval)
+    properties = self.properties(name)[interval]
+
+    i_buckets = config['i_calc'].buckets(properties['first'], properties['last'])
+    for i_bucket in i_buckets:
+      data = self.get(name, interval,
+        timestamp=config['i_calc'].from_bucket(i_bucket), **kwargs)
+      for timestamp,row in data.items():
+        yield (timestamp,row)
+
   def get(self, name, interval, **kwargs):
     '''
     Get the set of values for a named timeseries and interval. If timestamp
