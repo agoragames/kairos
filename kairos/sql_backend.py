@@ -69,6 +69,25 @@ class SqlBackend(Timeseries):
 
     return rval
 
+  def expire(self, name):
+    '''
+    Expire all the data.
+    '''
+    for interval,config in self._intervals.items():
+      if config['expire']:
+        # Because we're storing the bucket time, expiry has the same
+        # "skew" as whatever the buckets are.
+        expire_from = config['i_calc'].to_bucket(time.time() - config['expire'])
+        conn = self._client.connect()
+
+        conn.execute( self._table.delete().where(
+          and_(
+            self._table.c.name==name,
+            self._table.c.interval==interval,
+            self._table.c.i_time<=expire_from
+          )
+        ))
+
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the new value.

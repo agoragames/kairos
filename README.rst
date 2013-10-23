@@ -27,7 +27,7 @@ install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
 Usage
 =====
 
-Kairos supports redis and mongo storage using the same API.
+Kairos supports all storage engines using the same API.
 
 Redis
 -----
@@ -114,14 +114,14 @@ keyword arguments to the constructor are: ::
     Optional, is a function applied to all values when writing. Can be
     used for histogram resolution, converting an object into an id, etc.
     Must accept whatever can be inserted into a timeseries and return an
-    object which can be saved according to the rules of Redis or Mongo.
+    object which can be saved according to the rules of the storage engine.
 
   intervals
     Required, a dictionary of interval configurations in the form of: 
 
     {
-      # interval name, used in Redis and Mongo keys and should conform to best 
-      # practices according to the backend type.
+      # interval name, used in keys and should conform to best 
+      # practices according to the storage engine.
       minute: {
         
         # Required. The number of seconds that the interval will cover,
@@ -130,7 +130,8 @@ keyword arguments to the constructor are: ::
         
         # Optional. The maximum number of intervals to maintain. If supplied,
         # will use Redis and Mongo expiration to delete old intervals, else 
-        # intervals exist in perpetuity.
+        # intervals exist in perpetuity. If the storage engine doesn't support
+        # expiry, will be used to implement the expire() call.
         steps: 240,
         
         # Optional. Defines the resolution of the data, i.e. the number of 
@@ -505,8 +506,21 @@ data is stored within the tables.
 Deleting Data
 -------------
 
-To delete the data, call ``Timeseries.delete`` with the name of your statistic,
-and all values in all intervals will be deleted.
+There are two methods to delete data.
+
+delete
+******
+
+Takes a single argument, the name of the timeseries. Will delete all data for 
+that timeseries in all intervals.
+
+expire
+******
+
+Takes a single argument, the name of the timeseries. For storage engines that 
+do not support expiry, such as SQL, will delete expired data from intervals
+for which ``steps`` is defined. All other storage engines will raise the
+``NotImplementedError`` exception.
 
 Dragons!
 --------

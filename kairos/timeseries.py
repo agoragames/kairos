@@ -328,6 +328,12 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
+  def expire(self, name):
+    '''
+    Manually expire data for storage engines that do not support auto expiry.
+    '''
+    raise NotImplementedError()
+
   def insert(self, name, value, timestamp=None, intervals=0):
     '''
     Insert a value for the timeseries "name". For each interval in the 
@@ -498,20 +504,20 @@ class Timeseries(object):
 
     # Fugly range determination, all to get ourselves a start and end 
     # timestamp. Adjust steps argument to include the anchoring date.
-    if not end:
-      if start:
-        start_bucket = config['i_calc'].to_bucket( start )
-        end_bucket = config['i_calc'].to_bucket( start, steps-1 )
-      else:
+    if end is None:
+      if start is None:
         end = time.time()
         end_bucket = config['i_calc'].to_bucket( end )
         start_bucket = config['i_calc'].to_bucket( end, (-steps+1) )
+      else:
+        start_bucket = config['i_calc'].to_bucket( start )
+        end_bucket = config['i_calc'].to_bucket( start, steps-1 )
     else:
       end_bucket = config['i_calc'].to_bucket( end )
-      if start:
-        start_bucket = config['i_calc'].to_bucket( start )
-      else:
+      if start is None:
         start_bucket = config['i_calc'].to_bucket( end, (-steps+1) )
+      else:
+        start_bucket = config['i_calc'].to_bucket( start )
       
     # Now that we have start and end buckets, convert them back to normalized
     # time stamps and then back to buckets. :)
