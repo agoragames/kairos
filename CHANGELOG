@@ -1,5 +1,5 @@
-discover-api
-============
+0.7.0
+=====
 
 Added `Timeseries.list()` to get all of the stat names in a store.
 
@@ -7,8 +7,17 @@ Added `Timeseries.properties()` to get some stats about a stat.
 
 Added `Timeseries.iterate()` to iterate over all the data in a stat.
 
-Changed data type for gregorian time stamps. This will possibly require
-updates for any gregorian data already stored in mongo.
+Added `Timeseries.expire()` to manually expire SQL data.
+
+Changed data type to integer for gregorian time stamps. This will possibly 
+require updates for any gregorian data already stored in mongo.
+
+Tests can be skipped using environment variables.
+
+SQL tests can target different host and driver types through SQL_HOST
+environment variable.
+
+SQL string columns (VARCHAR) have a fixed length of 255.
 
 0.6.3
 =====

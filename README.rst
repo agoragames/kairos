@@ -2,7 +2,7 @@
 Kairos - Time series data storage
 =================================
 
-:Version: 0.6.3
+:Version: 0.7.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, time, timeseries, rrd, gevent, statistics
