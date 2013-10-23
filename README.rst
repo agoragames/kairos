@@ -163,9 +163,10 @@ output; ``watch -n 4 script/example`` is a useful tool as well.
 Inserting Data
 --------------
 
-There is one method to insert data, ``Timeseries.insert`` which takes the
-followng arguments:
+There is one method to insert data, ``Timeseries.insert``.
 
+insert
+******
 
 * **name** The name of the statistic
 * **value** The value of the statistic (optional for count timeseries)
@@ -195,12 +196,40 @@ the corresponding series type.
 * **count** integer or float
 * **gauge** value
 
+Discovering Data
+----------------
+
+There are two methods to "discover" the data store in a Timeseries.
+
+list
+****
+
+There are no arguments. Returns a list of all of the stat names stored 
+in the Timeseries.
+
+properties
+**********
+
+Takes a single argument, the name of the timeseries. Returns a dictionary
+with the following fields: ::
+
+  { interval : { 'first' : timestamp, 'last' : timestamp } }
+
+``interval`` will be the named interval, such as "minute". For each interval,
+there is a dictionary of properties. ``first`` is the timestamp of the first
+data point in the timeseries, and ``last`` is the last data point in the 
+timeseries.
+
+
 Reading Data
 ------------
 
-There are two methods to read data, ``Timeseries.get`` and ``Timeseries.series``.
-``get`` will return data from a single bucket, and ``series`` will return data
-from several buckets.
+There are three methods to read data, ``Timeseries.get``, ``Timeseries.series``
+and ``Timeseries.iterate``. ``get`` will return data from a single bucket, 
+and ``series`` will return data from several buckets. ``iterate`` will use
+the ``Timeseries.properties`` method to determine the date range of the data,
+and return a generator that calls ``get`` for every possible interval in
+the date range.
 
 get
 ***
@@ -263,6 +292,24 @@ It is important to note that the interval timestamps in the returned data will
 not necessarily match ``start`` or ``end``. This is because of the consistent
 hashing scheme that kairos uses, such that ``start`` and ``end`` will be 
 translated into the bucket in which it can be found.
+
+iterate
+*******
+
+Almost identical to ``get`` except it does not accept a ``timestamp`` argument.
+
+* **name** The name of the statistic, or a list of names whose data will be joined together.
+* **interval** The named interval to read from
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
+* **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
+* **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
+* **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
+* **join_rows** `(optional)` Can be a callable to implement `Customized Reads`_.
+
+Returns a generator which iterates over ``( timestamp : data )`` tuples, where
+``timestamp`` is a Unix timestamp and ``data`` corresponds to the rules
+documented in ``get``.
+
 
 Customized Reads
 ----------------

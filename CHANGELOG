@@ -3,6 +3,10 @@ discover-api
 
 Added `Timeseries.list()` to get all of the stat names in a store.
 
+Added `Timeseries.properties()` to get some stats about a stat.
+
+Added `Timeseries.iterate()` to iterate over all the data in a stat.
+
 Changed data type for gregorian time stamps. This will possibly require
 updates for any gregorian data already stored in mongo.
 
