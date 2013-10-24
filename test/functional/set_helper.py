@@ -19,7 +19,10 @@ class SetHelper(Chai):
           'resolution' : 60,
         }
       } )
-    self.series.delete('test')
+    self.series.delete_all()
+
+  def tearDown(self):
+    self.series.delete_all()
 
   def test_get(self):
     # 2 hours worth of data. Trim some bits from data resolution to assert

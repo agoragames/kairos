@@ -19,7 +19,10 @@ class SeriesHelper(Chai):
           'resolution' : 60,
         }
       } )
-    self.series.delete('test')
+    self.series.delete_all()
+
+  def tearDown(self):
+    self.series.delete_all()
 
   def test_insert_multiple_intervals_after(self):
     ts1 = _time(0)

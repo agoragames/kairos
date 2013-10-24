@@ -376,6 +376,15 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
+  def delete_all(self):
+    '''
+    Deletes all data in every timeseries. Default implementation is to walk
+    all of the names and call delete(stat), storage implementations are welcome
+    to optimize this.
+    '''
+    for name in self.list():
+      self.delete(name)
+
   def iterate(self, name, interval, **kwargs):
     '''
     Returns a generator that iterates over all the intervals and returns

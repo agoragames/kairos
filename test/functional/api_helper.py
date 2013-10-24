@@ -22,6 +22,10 @@ class ApiHelper(Chai):
           'step' : 3600,
         }
       } )
+    self.series.delete_all()
+
+  def tearDown(self):
+    self.series.delete_all()
 
   def test_list(self):
     self.series.insert( 'test', 32, timestamp=_time(0) )

@@ -1,3 +1,8 @@
+master
+======
+
+Added `Timeseries.delete_all()` to delete all stats in a timeseries.
+
 0.7.0
 =====
 
