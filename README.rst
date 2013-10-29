@@ -27,82 +27,26 @@ install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
 Usage
 =====
 
-Kairos supports all storage engines using the same API.
+Kairos supports all storage engines using the same API. The constructor will 
+return a Timeseries instance tailored for the type of data and the storage 
+engine, and the API for updating and querying the timeseries is consistent 
+for all combinations of data type and storage engine.
 
-Redis
------
+Constructor
+-----------
 
-::
-
-  from kairos import Timeseries
-  import redis
-
-  client = redis.Redis('localhost', 6379)
-  t = Timeseries(client, type='histogram', read_func=int, intervals={
-    'minute':{
-      'step':60,            # 60 seconds
-      'steps':120,          # last 2 hours
-    }
-  })
-
-  t.insert('example', 3.14159)
-  t.insert('example', 2.71828)
-  print t.get('example', 'minute')
-
-Mongo
------
-
-::
-
-  from kairos import Timeseries
-  import pymongo
-
-  client = pymongo.MongoClient('localhost')
-  t = Timeseries(client, type='histogram', read_func=int, intervals={
-    'minute':{
-      'step':60,            # 60 seconds
-      'steps':120,          # last 2 hours
-    }
-  })
-
-  t.insert('example', 3.14159)
-  t.insert('example', 2.71828)
-  print t.get('example', 'minute')
-
-SQL
----
-
-::
-
-  from kairos import Timeseries
-  from sqlalchemy import create_engine
-
-  client = create_engine('sqlite:///:memory:')
-  t = Timeseries(client, type='histogram', read_func=int, intervals={
-    'minute':{
-      'step':60,            # 60 seconds
-      'steps':120,          # last 2 hours
-    }
-  })
-
-  t.insert('example', 3.14159)
-  t.insert('example', 2.71828)
-  print t.get('example', 'minute')
-
-Each Timeseries will store data according to one of the supported types. The
-keyword arguments to the constructor are: ::
+The first argument is a handle to a supported storage engine, and the rest of
+the keyword arguments configure the timeseries. The keyword arguments 
+supported by all storage engines are: ::
 
   type
-    One of (series, histogram, count). Optional, defaults to "series".
+    Optional, defaults to "series". Can be one of:
 
     series - each interval will append values to a list
     histogram - each interval will track count of unique values
     count - each interval will maintain a single counter
     gauge - each interval will store the most recent data point
-
-  prefix
-    Optional, Redis only, is a prefix for all keys in this timeseries. If 
-    supplied and it doesn't end with ":", it will be automatically appended.
+    set - each interval will store a set of unique values
 
   read_func
     Optional, is a function applied to all values read back from the
@@ -153,13 +97,131 @@ and ``resolution``. Either or both parameters can use the terms ``[daily,
 weekly, monthly, yearly]`` to describe an interval. You can also mix these
 terms between ``step`` and ``resolution`` (e.g. ``daily`` in 
 ``1h`` resolutions). The expiration time for Gregorian dates is still defined
-in terms of seconds and may not match the  varying month lengths, leap years, 
+in terms of seconds and may not match the varying month lengths, leap years, 
 etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
-keys are so may be easier to use in raw form or any integrated tools.
+keys (**as integers**) and so may be easier to use in raw form or with any 
+external tools.
 
 Each retrieval function will by default return an ordered dictionary, though
 condensed results are also available. Run ``script/example`` to see standard
 output; ``watch -n 4 script/example`` is a useful tool as well.
+
+Storage Engines
+---------------
+
+Each of the supported storage engines also supports a set of keyword arguments
+to configure their behavior.
+
+Redis
+*****
+
+An example timeseries stored in Redis: ::
+
+  from kairos import Timeseries
+  import redis
+
+  client = redis.Redis('localhost', 6379)
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+Additional keyword arguments are: ::
+
+  prefix
+    Optional, Redis only, is a prefix for all keys in this timeseries. If 
+    supplied and it doesn't end with ":", it will be automatically appended.
+
+Mongo
+*****
+
+An example timeseries stored in Mongo: ::
+
+  from kairos import Timeseries
+  import pymongo
+
+  client = pymongo.MongoClient('localhost')
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+SQL
+***
+
+An example timeseries stored in a SQLite memory store: ::
+
+  from kairos import Timeseries
+  from sqlalchemy import create_engine
+
+  client = create_engine('sqlite:///:memory:')
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+Additional keyword arguments are: ::
+
+  string_length
+    Optional, configures the length of strings (VARCHARs). Defaults to 255.
+    All tables have at least 2 string columns, and the size of these columns
+    may impact usability of the SQL storage engine.
+
+  text_length
+    Optional, configures the length of TEXT and BLOB columns. Defaults to 
+    32Kbytes. Only matters if value_type is a text or blob.
+
+  value_type
+    Optional, defines the type of value to be stored in the timeseries. 
+    Defaults to float. Can be a string, a Python type or a SQLAlchemy type
+    or instance.
+    
+    'blob'
+    'bool'
+    <type 'bool'>
+    'boolean'
+    'clob'
+    'date'
+    <type 'datetime.date'>
+    'datetime'
+    <type 'datetime.datetime'>
+    'decimal'
+    <class 'decimal.Decimal'>
+    'float'
+    <type 'float'>
+    'int'
+    'int64'
+    'integer'
+    <type 'int'>
+    'long'
+    <type 'long'>
+    'str'
+    'string'
+    <type 'str'>
+    'text'
+    'time'
+    <type 'datetime.time'>
+    'unicode'
+    <type 'unicode'>
+
 
 Inserting Data
 --------------

@@ -1,3 +1,8 @@
+sql-improvements
+================
+
+Added configuration options for columns in SQL stores.
+
 master
 ======
 

@@ -6,10 +6,62 @@ https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 from .exceptions import *
 from .timeseries import *
 
-from sqlalchemy import Table, Column, Integer, String, Float, MetaData, UniqueConstraint
+from sqlalchemy.types import TypeEngine
+from sqlalchemy import Table, Column, BigInteger, Integer, String, Unicode, Text, LargeBinary, Float, Boolean, Time, Date, DateTime, Numeric, MetaData, UniqueConstraint
 from sqlalchemy.sql import select, update, insert, distinct, asc, desc, and_, or_, not_
 
 import time
+from datetime import date, datetime
+from datetime import time as time_type
+from decimal import Decimal
+
+# Test python3 compatibility
+try:
+  x = long(1)
+except NameError:
+  long = int
+try:
+  x = unicode('foo')
+except NameError:
+  unicode = str
+
+TYPE_MAP = {
+  str         : String,
+  'str'       : String,
+  'string'    : String,
+
+  unicode     : Unicode,  # works for py3 too
+  'unicode'   : Unicode,
+
+  float       : Float,
+  'float'     : Float,
+
+  int         : Integer,
+  'int'       : Integer,
+  'integer'   : Integer,
+
+  long        : BigInteger, # works for py3 too
+  'long'      : BigInteger,
+  'int64'     : BigInteger,
+
+  bool        : Boolean,
+  'bool'      : Boolean,
+  'boolean'   : Boolean,
+
+  date        : Date,
+  'date'      : Date,
+  datetime    : DateTime,
+  'datetime'  : DateTime,
+  time_type   : Time,
+  'time'      : Time,
+
+  Decimal     : Numeric,
+  'decimal'   : Numeric,
+
+  'text'      : Text,
+  'clob'      : Text,
+  'blob'      : LargeBinary,
+}
 
 class SqlBackend(Timeseries):
   
@@ -31,6 +83,33 @@ class SqlBackend(Timeseries):
     Initialize the sql backend after timeseries has processed the configuration.
     '''
     self._metadata = MetaData()
+    self._str_length = kwargs.get('string_length',255)
+    self._txt_length = kwargs.get('text_length', 32*1024)
+    
+    vtype = kwargs.get('value_type', float)
+    if vtype in TYPE_MAP:
+      self._value_type = TYPE_MAP[vtype]
+      if self._value_type == String:
+        self._value_type = String(self._str_length)
+      elif self._value_type == Text:
+        self._value_type = Text(self._txt_length)
+      elif self._value_type == LargeBinary:
+        self._value_type = LargeBinary(self._txt_length)
+
+    elif issubclass(vtype, TypeEngine):
+      if vtype == String:
+        self._value_type = String(self._str_length)
+      elif vtype == Text:
+        self._value_type = Text(self._txt_length)
+      elif vtype == LargeBinary:
+        self._value_type = LargeBinary(self._txt_length)
+
+    elif isinstance(vtype, TypeEngine):
+      self._value_type = vtype
+
+    else:
+      raise ValueError("Unsupported type '%s'"%(vtype))
+
     super(SqlBackend,self).__init__(client, **kwargs)
 
   def list(self):
@@ -178,17 +257,16 @@ class SqlBackend(Timeseries):
 class SqlSeries(SqlBackend, Series):
   
   def __init__(self, *a, **kwargs):
-    # TODO: Support kwargs so that we support more than just floats
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlSeries,self).__init__(*a, **kwargs)
     self._table = Table('series', self._metadata,
-      Column('name', String(255), nullable=False),      # stat name
-      Column('interval', String(255), nullable=False),  # interval name
+      Column('name', String(self._str_length), nullable=False),      # stat name
+      Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('insert_time', Float, nullable=False),     # to preserve order
       Column('i_time', Integer, nullable=False),        # interval timestamp
       Column('r_time', Integer, nullable=True),         # resolution timestamp
-      Column('value', Float, nullable=False)            # datas
+      Column('value', self._value_type, nullable=False)            # datas
     )
     self._metadata.create_all(self._client)
   
@@ -238,16 +316,15 @@ class SqlSeries(SqlBackend, Series):
 class SqlHistogram(SqlBackend, Histogram):
   
   def __init__(self, *a, **kwargs):
-    # TODO: Support kwargs so that we support more than just floats
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlHistogram,self).__init__(*a, **kwargs)
     self._table = Table('histogram', self._metadata,
-      Column('name', String(255), nullable=False),      # stat name
-      Column('interval', String(255), nullable=False),  # interval name
+      Column('name', String(self._str_length), nullable=False),      # stat name
+      Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp
       Column('r_time', Integer, nullable=True),         # resolution timestamp
-      Column('value', Float, nullable=False),           # histogram keys
+      Column('value', self._value_type, nullable=False),           # histogram keys
       Column('count', Integer, nullable=False),         # key counts
 
       # Use a constraint for transaction-less insert vs update
@@ -325,13 +402,12 @@ class SqlHistogram(SqlBackend, Histogram):
 class SqlCount(SqlBackend, Count):
   
   def __init__(self, *a, **kwargs):
-    # TODO: Support kwargs so that we support more than just floats
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlCount,self).__init__(*a, **kwargs)
     self._table = Table('count', self._metadata,
-      Column('name', String(255), nullable=False),      # stat name
-      Column('interval', String(255), nullable=False),  # interval name
+      Column('name', String(self._str_length), nullable=False),      # stat name
+      Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp
       Column('r_time', Integer, nullable=True),         # resolution timestamp
       Column('count', Integer, nullable=False),         # key counts
@@ -409,16 +485,15 @@ class SqlCount(SqlBackend, Count):
 class SqlGauge(SqlBackend, Gauge):
   
   def __init__(self, *a, **kwargs):
-    # TODO: Support kwargs so that we support more than just floats
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
     super(SqlGauge,self).__init__(*a, **kwargs)
     self._table = Table('gauge', self._metadata,
-      Column('name', String(255), nullable=False),      # stat name
-      Column('interval', String(255), nullable=False),  # interval name
+      Column('name', String(self._str_length), nullable=False),      # stat name
+      Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp
       Column('r_time', Integer, nullable=True),         # resolution timestamp
-      Column('value', Float, nullable=False),           # key counts
+      Column('value', self._value_type, nullable=False),           # key counts
 
       # Use a constraint for transaction-less insert vs update
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', name='unique_count')
