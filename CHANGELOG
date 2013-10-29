@@ -1,10 +1,7 @@
-sql-improvements
-================
+0.7.1
+=====
 
 Added configuration options for columns in SQL stores.
-
-master
-======
 
 Added `Timeseries.delete_all()` to delete all stats in a timeseries.
 
