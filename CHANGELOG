@@ -1,3 +1,14 @@
+cassandra
+=========
+
+Added support for Cassandra storage.
+
+Added limits when querying properties of a SQL stat.
+
+Changed behavior of sets to include storage of all datapoints, positive
+or negative.
+
+
 0.7.1
 =====
 

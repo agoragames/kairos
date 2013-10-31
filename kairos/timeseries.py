@@ -363,7 +363,7 @@ class Timeseries(object):
 
     self._insert( name, value, timestamp, intervals )
 
-  def _insert(self, name, value, timestamp):
+  def _insert(self, name, value, timestamp, intervals):
     '''
     Support for the insert per type of series.
     '''
@@ -578,7 +578,7 @@ class Timeseries(object):
     
     return rval
 
-  def _series(self, name, interval, config, buckets, fetch):
+  def _series(self, name, interval, config, buckets, **kws):
     '''
     Subclasses must implement fetching a series.
     '''
@@ -846,6 +846,9 @@ class Set(Timeseries):
   Time series that manages sets.
   '''
 
+  def _type_no_value(self):
+    return set()
+
   def _transform(self, data, transform):
     '''
     Transform the data. If the transform is not supported by this series,
@@ -903,8 +906,13 @@ except ImportError as e:
   print('Mongo backend not loaded,', e)
 
 try:
-  #from sqlalchemy.engine.base import Engine
   from .sql_backend import SqlBackend
   BACKENDS['sqlalchemy'] = SqlBackend
 except ImportError as e:
   print('SQL backend not loaded,', e)
+
+try:
+  from .cassandra_backend import CassandraBackend
+  BACKENDS['cql'] = CassandraBackend
+except ImportError as e:
+  print('Cassandra backend not loaded,', e)

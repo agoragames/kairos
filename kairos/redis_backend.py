@@ -279,10 +279,7 @@ class RedisSet(RedisBackend, Set):
     '''
     Insert the value into the series.
     '''
-    if value>0:
-      handle.sadd(key, value)
-    else:
-      handle.srem(key, value)
+    handle.sadd(key, value)
 
   def _type_get(self, handle, key):
     return handle.smembers(key)

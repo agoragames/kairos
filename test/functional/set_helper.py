@@ -52,7 +52,7 @@ class SetHelper(Chai):
 
     interval = self.series.get( 'test', 'hour', timestamp=_time(100), condensed=True )
     assert_equals( 1, len(interval) )
-    assert_equals( set(range(1,240)), interval[_time(0)] )
+    assert_equals( set(range(0,240)), interval[_time(0)] )
 
     interval = self.series.get( 'test', 'hour', timestamp=_time(4000), condensed=True )
     assert_equals( 1, len(interval) )
@@ -69,7 +69,7 @@ class SetHelper(Chai):
     ###
     interval = self.series.series( 'test', 'minute', end=_time(250) )
     assert_equals( map(_time, [0,60,120,180,240]), interval.keys() )
-    assert_equals( set([1,2,3]), interval[_time(0)] )
+    assert_equals( set([0,1,2,3]), interval[_time(0)] )
     assert_equals( set([4,5,6,7]), interval[_time(60)] )
 
     interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
@@ -79,7 +79,7 @@ class SetHelper(Chai):
     # with collapse
     interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
     assert_equals( map(_time, [0]), interval.keys() )
-    assert_equals( set(range(1,20)), interval[_time(0)] )
+    assert_equals( set(range(0,20)), interval[_time(0)] )
 
     ###
     ### with resolution
@@ -87,7 +87,7 @@ class SetHelper(Chai):
     interval = self.series.series( 'test', 'hour', end=_time(250) )
     assert_equals( 1, len(interval) )
     assert_equals( 60, len(interval[_time(0)]) )
-    assert_equals( set([1,2,3]), interval[_time(0)][_time(0)] )
+    assert_equals( set([0,1,2,3]), interval[_time(0)][_time(0)] )
     assert_equals( set([4,5,6,7]), interval[_time(0)][_time(60)] )
 
     # single step, last one
@@ -97,19 +97,17 @@ class SetHelper(Chai):
 
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
-    assert_equals( set(range(1,240)), interval[_time(0)] )
+    assert_equals( set(range(0,240)), interval[_time(0)] )
     assert_equals( set(range(240,480)), interval[_time(3600)] )
 
     # with collapse
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
     assert_equals( map(_time, [0]), interval.keys() )
-    assert_equals( set(range(1,480)), interval[_time(0)] )
+    assert_equals( set(range(0,480)), interval[_time(0)] )
 
   def test_series_joined(self):
     # put some data in the first minutes of each hour for test1, and then for
     # a few more minutes in test2
-    self.series.delete('test1')
-    self.series.delete('test2')
     for t in xrange(1, 120):
       self.series.insert( 'test1', t/15, timestamp=_time(t) )
       self.series.insert( 'test2', t/15, timestamp=_time(t) )
@@ -126,7 +124,7 @@ class SetHelper(Chai):
     ###
     interval = self.series.series( ['test1','test2'], 'minute', end=_time(250) )
     assert_equals( map(_time,[0,60,120,180,240]), interval.keys() )
-    assert_equals( set([1,2,3]), interval[_time(0)] )
+    assert_equals( set([0,1,2,3]), interval[_time(0)] )
     assert_equals( set([4,5,6,7]), interval[_time(60)] )
     assert_equals( set([8,9,10,11]), interval[_time(120)] )
     assert_equals( set([12,13,14,15]), interval[_time(180)] )
@@ -140,7 +138,7 @@ class SetHelper(Chai):
     # with collapsed
     interval = self.series.series( ['test1','test2'], 'minute', end=_time(250), collapse=True )
     assert_equals( [_time(0)], interval.keys() )
-    assert_equals( set(range(1,16)), interval[_time(0)] )
+    assert_equals( set(range(0,16)), interval[_time(0)] )
 
     ###
     ### with resolution, optionally condensed
@@ -149,7 +147,7 @@ class SetHelper(Chai):
     assert_equals( 1, len(interval) )
     assert_equals( map(_time,[0,60,120,180]), interval[_time(0)].keys() )
     assert_equals( 4, len(interval[_time(0)]) )
-    assert_equals( set([1,2,3]), interval[_time(0)][_time(0)] )
+    assert_equals( set([0,1,2,3]), interval[_time(0)][_time(0)] )
     assert_equals( set([4,5,6,7]), interval[_time(0)][_time(60)] )
     assert_equals( set([8,9,10,11]), interval[_time(0)][_time(120)] )
     assert_equals( set([12,13,14,15]), interval[_time(0)][_time(180)] )
@@ -157,9 +155,9 @@ class SetHelper(Chai):
     # condensed
     interval = self.series.series( ['test1','test2'], 'hour', end=_time(250), condensed=True )
     assert_equals( [_time(0)], interval.keys() )
-    assert_equals( set(range(1,16)), interval[_time(0)] )
+    assert_equals( set(range(0,16)), interval[_time(0)] )
 
     # with collapsed
     interval = self.series.series( ['test1','test2'], 'hour', condensed=True, end=_time(4200), steps=2, collapse=True )
     assert_equals( map(_time, [0]), interval.keys() )
-    assert_equals( set(range(1,16)) | set(range(240,256)), interval[_time(0)] )
+    assert_equals( set(range(0,16)) | set(range(240,256)), interval[_time(0)] )

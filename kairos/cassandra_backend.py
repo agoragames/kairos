@@ -1,0 +1,544 @@
+'''
+Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/kairos/blob/master/LICENSE.txt
+'''
+from .exceptions import *
+from .timeseries import *
+
+import cql
+
+import time
+from datetime import date, datetime
+from datetime import time as time_type
+from decimal import Decimal
+
+class CassandraBackend(Timeseries):
+  
+  def __new__(cls, *args, **kwargs):
+    if cls==CassandraBackend:
+      ttype = kwargs.pop('type', None)
+      if ttype=='series':
+        return CassandraSeries.__new__(CassandraSeries, *args, **kwargs)
+      elif ttype=='histogram':
+        return CassandraHistogram.__new__(CassandraHistogram, *args, **kwargs)
+      elif ttype=='count':
+        return CassandraCount.__new__(CassandraCount, *args, **kwargs)
+      elif ttype=='gauge':
+        return CassandraGauge.__new__(CassandraGauge, *args, **kwargs)
+      elif ttype=='set':
+        return CassandraSet.__new__(CassandraSet, *args, **kwargs)
+    return Timeseries.__new__(cls, *args, **kwargs)
+  
+  def __init__(self, client, **kwargs):
+    '''
+    Initialize the sql backend after timeseries has processed the configuration.
+    '''
+    # Only CQL3 is supported
+    if client.cql_major_version != 3:
+      raise TypeError("Only CQL3 is supported")
+    
+    # TODO: support other value types, similar to the SQL driver
+    super(CassandraBackend,self).__init__(client, **kwargs)
+  
+  def _insert(self, name, value, timestamp, intervals):
+    '''
+    Insert the new value.
+    '''
+    for interval,config in self._intervals.items():
+      self._insert_data(name, value, timestamp, interval, config)
+      steps = intervals
+      if steps<0:
+        while steps<0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config)
+          steps += 1
+      elif steps>0:
+        while steps>0:
+          i_timestamp = config['i_calc'].normalize(timestamp, steps)
+          self._insert_data(name, value, i_timestamp, interval, config)
+          steps -= 1
+  
+  def _get(self, name, interval, config, timestamp, **kws):
+    '''
+    Get the interval.
+    '''
+    i_bucket = config['i_calc'].to_bucket(timestamp)
+    fetch = kws.get('fetch')
+    process_row = kws.get('process_row') or self._process_row
+
+    rval = OrderedDict()
+    if fetch:
+      data = fetch( self._client, self._table, name, interval, i_bucket )
+    else:
+      data = self._type_get(name, interval, i_bucket)
+
+    if config['coarse']:
+      if data:
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = process_row(data.values()[0][None])
+      else:
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
+    else:
+      for r_bucket,row_data in data.values()[0].items():
+        rval[ config['r_calc'].from_bucket(r_bucket) ] = process_row(row_data)
+    
+    return rval
+  
+  def _series(self, name, interval, config, buckets, **kws):
+    '''
+    Fetch a series of buckets.
+    '''
+    fetch = kws.get('fetch')
+    process_row = kws.get('process_row') or self._process_row
+
+    rval = OrderedDict()
+
+    if fetch:
+      data = fetch( self._client, self._table, name, interval, buckets[0], buckets[-1] )
+    else:
+      data = self._type_get(name, interval, buckets[0], buckets[-1])
+
+    if config['coarse']:
+      for i_bucket in buckets:
+        i_key = config['i_calc'].from_bucket(i_bucket)
+        i_data = data.get( i_bucket )
+        if i_data:
+          rval[ i_key ] = process_row( i_data[None] )
+        else:
+          rval[ i_key ] = self._type_no_value()
+    else:
+      if data:
+        for i_bucket, i_data in data.items():
+          i_key = config['i_calc'].from_bucket(i_bucket)
+          rval[i_key] = OrderedDict()
+          for r_bucket, r_data in i_data.items():
+            r_key = config['r_calc'].from_bucket(r_bucket)
+            if r_data:
+              rval[i_key][r_key] = process_row(r_data)
+            else:
+              rval[i_key][r_key] = self._type_no_value()
+    
+    return rval
+  
+  def delete(self, name):
+    cursor = self._client.cursor()
+    try:
+      cursor.execute("DELETE FROM %s WHERE name='%s';"%(self._table,name))
+    finally:
+      cursor.close()
+
+  def delete_all(self):
+    cursor = self._client.cursor()
+    try:
+      cursor.execute("TRUNCATE %s"%(self._table))
+    finally:
+      cursor.close()
+  
+  def list(self):
+    cursor = self._client.cursor()
+    rval = set()
+
+    try:
+      cursor.execute('SELECT name FROM %s'%(self._table))
+      for row in cursor:
+        rval.add(row[0])
+    finally:
+      cursor.close()
+    return list(rval)
+
+  def properties(self, name):
+    cursor = self._client.cursor()
+    rval = {}
+
+    try:
+      for interval,config in self._intervals.items():
+        rval.setdefault(interval, {})
+
+        cursor.execute('''SELECT i_time 
+          FROM %s
+          WHERE name = '%s' AND interval = '%s'
+          ORDER BY interval ASC, i_time ASC
+          LIMIT 1'''%(self._table, name, interval))
+          
+        rval[interval]['first'] = config['i_calc'].from_bucket(
+          cursor.fetchone()[0] )
+        
+        cursor.execute('''SELECT i_time 
+          FROM %s
+          WHERE name = '%s' AND interval = '%s'
+          ORDER BY interval DESC, i_time DESC
+          LIMIT 1'''%(self._table, name, interval))
+        rval[interval]['last'] = config['i_calc'].from_bucket(
+          cursor.fetchone()[0] )
+    finally:
+      cursor.close()
+
+    return rval
+
+class CassandraSeries(CassandraBackend, Series):
+  
+  def __init__(self, *a, **kwargs):
+    super(CassandraSeries,self).__init__(*a, **kwargs)
+    self._table = 'series'
+
+    cursor = self._client.cursor()
+    # TODO: support other value types
+    # TODO: use varint for [ir]_time?
+    try:
+      res = cursor.execute('''CREATE TABLE IF NOT EXISTS %s (
+        name text,
+        interval text,
+        i_time bigint,
+        r_time bigint,
+        value list<float>,
+        PRIMARY KEY(name, interval, i_time, r_time)
+      )'''%(self._table))
+    except cql.ProgrammingError as pe:
+      if 'existing' not in str(pe):
+        raise
+    finally:
+      cursor.close()
+  
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into sql.'''
+    i_time = config['i_calc'].to_bucket(timestamp)
+    if not config['coarse']:
+      r_time = config['r_calc'].to_bucket(timestamp)
+    else:
+      r_time = -1
+   
+    # TODO: figure out escaping rules of CQL
+    cursor = self._client.cursor()
+    try:
+      table_spec = self._table
+      expire = config['expire']
+      if expire:
+        table_spec += " USING TTL %s "%(expire)
+      stmt = '''UPDATE %s SET value = value + [%s]
+        WHERE name = '%s'
+        AND interval = '%s'
+        AND i_time = %s
+        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
+
+  def _type_get(self, name, interval, i_bucket, i_end=None):
+    rval = OrderedDict()
+    
+    # TODO: more efficient creation of query string
+    stmt = '''SELECT i_time, r_time, value 
+      FROM %s
+      WHERE name = '%s' AND interval = '%s'
+    '''%(self._table, name, interval)
+    if i_end :
+      stmt += ' AND i_time >= %s AND i_time <= %s'%(i_bucket, i_end)
+    else:
+      stmt += ' AND i_time = %s'%(i_bucket)
+    stmt += ' ORDER BY interval, i_time, r_time'
+
+    cursor = self._client.cursor()
+    try:
+      cursor.execute(stmt)
+      for row in cursor:
+        i_time, r_time, value = row
+        if r_time==-1:
+          r_time = None
+        rval.setdefault(i_time,OrderedDict())[r_time] = value
+    finally:
+      cursor.close()
+    return rval
+
+class CassandraHistogram(CassandraBackend, Histogram):
+  
+  def __init__(self, *a, **kwargs):
+    super(CassandraHistogram,self).__init__(*a, **kwargs)
+    self._table = 'histogram'
+
+    # TODO: use varint for [ir]_time?
+    # TODO: support other value types
+    cursor = self._client.cursor()
+    try:
+      res = cursor.execute('''CREATE TABLE IF NOT EXISTS %s (
+        name text,
+        interval text,
+        i_time bigint,
+        r_time bigint,
+        value float,
+        count counter,
+        PRIMARY KEY(name, interval, i_time, r_time, value)
+      )'''%(self._table))
+    except cql.ProgrammingError as pe:
+      if 'existing' not in str(pe):
+        raise
+    finally:
+      cursor.close()
+  
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into sql.'''
+    i_time = config['i_calc'].to_bucket(timestamp)
+    if not config['coarse']:
+      r_time = config['r_calc'].to_bucket(timestamp)
+    else:
+      r_time = -1
+   
+    # TODO: figure out escaping rules of CQL
+    cursor = self._client.cursor()
+    try:
+      table_spec = self._table
+      expire = config['expire']
+      if expire:
+        table_spec += " USING TTL %s "%(expire)
+      stmt = '''UPDATE %s SET count = count + 1
+        WHERE name = '%s'
+        AND interval = '%s'
+        AND i_time = %s
+        AND r_time = %s
+        AND value = %s'''%(table_spec, name, interval, i_time, r_time, value)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
+
+  def _type_get(self, name, interval, i_bucket, i_end=None):
+    rval = OrderedDict()
+    
+    # TODO: more efficient creation of query string
+    stmt = '''SELECT i_time, r_time, value, count
+      FROM %s
+      WHERE name = '%s' AND interval = '%s'
+    '''%(self._table, name, interval)
+    if i_end :
+      stmt += ' AND i_time >= %s AND i_time <= %s'%(i_bucket, i_end)
+    else:
+      stmt += ' AND i_time = %s'%(i_bucket)
+    stmt += ' ORDER BY interval, i_time, r_time'
+
+    cursor = self._client.cursor()
+    try:
+      cursor.execute(stmt)
+      for row in cursor:
+        i_time, r_time, value, count = row
+        if r_time==-1:
+          r_time = None
+        rval.setdefault(i_time,OrderedDict()).setdefault(r_time,{})[value] = count
+    finally:
+      cursor.close()
+    return rval
+
+class CassandraCount(CassandraBackend, Count):
+  
+  def __init__(self, *a, **kwargs):
+    super(CassandraCount,self).__init__(*a, **kwargs)
+    self._table = 'count'
+
+    # TODO: use varint for [ir]_time?
+    # TODO: support other value types
+    cursor = self._client.cursor()
+    try:
+      res = cursor.execute('''CREATE TABLE IF NOT EXISTS %s (
+        name text,
+        interval text,
+        i_time bigint,
+        r_time bigint,
+        count counter,
+        PRIMARY KEY(name, interval, i_time, r_time)
+      )'''%(self._table))
+    except cql.ProgrammingError as pe:
+      if 'existing' not in str(pe):
+        raise
+    finally:
+      cursor.close()
+  
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into sql.'''
+    i_time = config['i_calc'].to_bucket(timestamp)
+    if not config['coarse']:
+      r_time = config['r_calc'].to_bucket(timestamp)
+    else:
+      r_time = -1
+   
+    # TODO: figure out escaping rules of CQL
+    cursor = self._client.cursor()
+    try:
+      table_spec = self._table
+      expire = config['expire']
+      if expire:
+        table_spec += " USING TTL %s "%(expire)
+      stmt = '''UPDATE %s SET count = count + %s
+        WHERE name = '%s'
+        AND interval = '%s'
+        AND i_time = %s
+        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
+
+  def _type_get(self, name, interval, i_bucket, i_end=None):
+    rval = OrderedDict()
+    
+    # TODO: more efficient creation of query string
+    stmt = '''SELECT i_time, r_time, count
+      FROM %s
+      WHERE name = '%s' AND interval = '%s'
+    '''%(self._table, name, interval)
+    if i_end :
+      stmt += ' AND i_time >= %s AND i_time <= %s'%(i_bucket, i_end)
+    else:
+      stmt += ' AND i_time = %s'%(i_bucket)
+    stmt += ' ORDER BY interval, i_time, r_time'
+
+    cursor = self._client.cursor()
+    try:
+      cursor.execute(stmt)
+      for row in cursor:
+        i_time, r_time, count = row
+        if r_time==-1:
+          r_time = None
+        rval.setdefault(i_time,OrderedDict())[r_time] = count
+    finally:
+      cursor.close()
+    return rval
+
+class CassandraGauge(CassandraBackend, Gauge):
+  
+  def __init__(self, *a, **kwargs):
+    super(CassandraGauge,self).__init__(*a, **kwargs)
+    self._table = 'gauge'
+
+    # TODO: use varint for [ir]_time?
+    # TODO: support other value types
+    cursor = self._client.cursor()
+    try:
+      res = cursor.execute('''CREATE TABLE IF NOT EXISTS %s (
+        name text,
+        interval text,
+        i_time bigint,
+        r_time bigint,
+        value float,
+        PRIMARY KEY(name, interval, i_time, r_time)
+      )'''%(self._table))
+    except cql.ProgrammingError as pe:
+      if 'existing' not in str(pe):
+        raise
+    finally:
+      cursor.close()
+  
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into sql.'''
+    i_time = config['i_calc'].to_bucket(timestamp)
+    if not config['coarse']:
+      r_time = config['r_calc'].to_bucket(timestamp)
+    else:
+      r_time = -1
+   
+    # TODO: figure out escaping rules of CQL
+    cursor = self._client.cursor()
+    try:
+      table_spec = self._table
+      expire = config['expire']
+      if expire:
+        table_spec += " USING TTL %s "%(expire)
+      stmt = '''UPDATE %s SET value = %s
+        WHERE name = '%s'
+        AND interval = '%s'
+        AND i_time = %s
+        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
+
+  def _type_get(self, name, interval, i_bucket, i_end=None):
+    rval = OrderedDict()
+    
+    # TODO: more efficient creation of query string
+    stmt = '''SELECT i_time, r_time, value
+      FROM %s
+      WHERE name = '%s' AND interval = '%s'
+    '''%(self._table, name, interval)
+    if i_end :
+      stmt += ' AND i_time >= %s AND i_time <= %s'%(i_bucket, i_end)
+    else:
+      stmt += ' AND i_time = %s'%(i_bucket)
+    stmt += ' ORDER BY interval, i_time, r_time'
+
+    cursor = self._client.cursor()
+    try:
+      cursor.execute(stmt)
+      for row in cursor:
+        i_time, r_time, value = row
+        if r_time==-1:
+          r_time = None
+        rval.setdefault(i_time,OrderedDict())[r_time] = value
+    finally:
+      cursor.close()
+    return rval
+
+class CassandraSet(CassandraBackend, Set):
+  
+  def __init__(self, *a, **kwargs):
+    super(CassandraSet,self).__init__(*a, **kwargs)
+    self._table = 'sets'
+
+    # TODO: use varint for [ir]_time?
+    # TODO: support other value types
+    cursor = self._client.cursor()
+    try:
+      res = cursor.execute('''CREATE TABLE IF NOT EXISTS %s (
+        name text,
+        interval text,
+        i_time bigint,
+        r_time bigint,
+        value float,
+        PRIMARY KEY(name, interval, i_time, r_time, value)
+      )'''%(self._table))
+    except cql.ProgrammingError as pe:
+      if 'existing' not in str(pe):
+        raise
+    finally:
+      cursor.close()
+  
+  def _insert_data(self, name, value, timestamp, interval, config):
+    '''Helper to insert data into sql.'''
+    i_time = config['i_calc'].to_bucket(timestamp)
+    if not config['coarse']:
+      r_time = config['r_calc'].to_bucket(timestamp)
+    else:
+      r_time = -1
+   
+    # TODO: figure out escaping rules of CQL
+    cursor = self._client.cursor()
+    try:
+      stmt = '''INSERT INTO %s (name, interval, i_time, r_time, value)
+        VALUES ('%s', '%s', %s, %s, %s)'''%(self._table, name, interval, i_time, r_time, value)
+      expire = config['expire']
+      if expire:
+        stmt += " USING TTL %s"%(expire)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
+
+  def _type_get(self, name, interval, i_bucket, i_end=None):
+    rval = OrderedDict()
+   
+    # TODO: more efficient creation of query string
+    stmt = '''SELECT i_time, r_time, value
+      FROM %s
+      WHERE name = '%s' AND interval = '%s'
+    '''%(self._table, name, interval)
+    if i_end :
+      stmt += ' AND i_time >= %s AND i_time <= %s'%(i_bucket, i_end)
+    else:
+      stmt += ' AND i_time = %s'%(i_bucket)
+    stmt += ' ORDER BY interval, i_time, r_time'
+
+    cursor = self._client.cursor()
+    try:
+      cursor.execute(stmt)
+      for row in cursor:
+        i_time, r_time, value = row
+        if r_time==-1:
+          r_time = None
+        rval.setdefault(i_time,OrderedDict()).setdefault(r_time,set()).add( value )
+    finally:
+      cursor.close()
+    return rval
