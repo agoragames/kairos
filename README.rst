@@ -647,10 +647,8 @@ Roadmap
   DynamoDB, SimpleDB, GDBM, Berkeley DB, and more
 * Redis optimizations
 * Capped collection support for mongo
-* Expose the native commands for various data stores (e.g. "sismember") for
-  single interval and series queries.
+* InfluxDB support
 * Bloom filters
-* "Native" transforms that leverage data store features (e.g. "length")
 * Joined series populate a data structure at query time
 * Joined series support concurrency "runner"
 
