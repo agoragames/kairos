@@ -133,7 +133,7 @@ class SqlBackend(Timeseries):
           self._table.c.name==name,
           self._table.c.interval==interval
         )
-      ).order_by( asc(self._table.c.i_time) )
+      ).order_by( asc(self._table.c.i_time) ).limit(1)
       rval[interval]['first'] = config['i_calc'].from_bucket(
         connection.execute(stmt).first()['i_time'] )
       
@@ -142,7 +142,7 @@ class SqlBackend(Timeseries):
           self._table.c.name==name,
           self._table.c.interval==interval
         )
-      ).order_by( desc(self._table.c.i_time) )
+      ).order_by( desc(self._table.c.i_time) ).limit(1)
       rval[interval]['last'] = config['i_calc'].from_bucket(
         connection.execute(stmt).first()['i_time'] )
 
