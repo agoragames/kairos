@@ -60,8 +60,6 @@ class HistogramHelper(Chai):
   def test_get_joined(self):
     # put some data in the first minutes of each hour for test1, and then for
     # a few more minutes in test2
-    self.series.delete('test1')
-    self.series.delete('test2')
     for t in xrange(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )
@@ -172,8 +170,6 @@ class HistogramHelper(Chai):
   def test_series_joined(self):
     # put some data in the first minutes of each hour for test1, and then for
     # a few more minutes in test2
-    self.series.delete('test1')
-    self.series.delete('test2')
     for t in xrange(1, 120):
       self.series.insert( 'test1', t, timestamp=_time(t) )
       self.series.insert( 'test2', t, timestamp=_time(t) )

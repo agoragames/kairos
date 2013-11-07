@@ -189,6 +189,9 @@ Additional keyword arguments are: ::
     Optional, configures the length of TEXT and BLOB columns. Defaults to 
     32Kbytes. Only matters if value_type is a text or blob.
 
+  table_name
+    Optional, overrides the default table name for a timeseries type.
+
   value_type
     Optional, defines the type of value to be stored in the timeseries. 
     Defaults to float. Can be a string, a Python type or a SQLAlchemy type
@@ -222,6 +225,72 @@ Additional keyword arguments are: ::
     'unicode'
     <type 'unicode'>
 
+Cassandra
+*********
+
+An example timeseries stored in Cassandra: ::
+
+  from kairos import Timeseries
+  import cql
+
+  client = cql.connect('localhost', 9160, 'keyspace', cql_version='3.0.0')
+  t = Timeseries(client, type='histogram', read_func=int, intervals={
+    'minute':{
+      'step':60,            # 60 seconds
+      'steps':120,          # last 2 hours
+    }
+  })
+
+  t.insert('example', 3.14159)
+  t.insert('example', 2.71828)
+  print t.get('example', 'minute')
+
+Additional keyword arguments are: ::
+
+  table_name
+    Optional, overrides the default table name for a timeseries type.
+
+  value_type
+    Optional, defines the type of value to be stored in the timeseries. 
+    Defaults to float. Can be a string or a Python type.
+
+    <type 'unicode'>
+    string
+    decimal
+    <type 'long'>
+    int
+    double
+    unicode
+    float
+    long
+    <type 'bool'>
+    <type 'float'>
+    boolean
+    int64
+    str
+    text
+    blob
+    clob
+    integer
+    bool
+    <type 'str'>
+    <type 'int'>
+    inet
+
+kairos requires `cql <https://pypi.python.org/pypi/cql>`_ as it supports
+`CQL3 <https://cassandra.apache.org/doc/cql3/CQL.html>`_ and gevent. This 
+requires that the keyspace be created before the connection, and the keyword 
+argument ``cql_version='3.0.0'`` must be used.
+
+A notable downside of this library is that it does not support a list of
+endpoints to connect to, so is missing key High Availability features.
+
+It is likely that future versions of kairos will require 
+`cassandra-driver <https://github.com/datastax/python-driver>`_ when it 
+is ready.
+
+Cassandra counters can only store integers, and cannot be used for a 
+running total of floating point numbers.
 
 Inserting Data
 --------------
@@ -536,13 +605,14 @@ Re-implementing the default functionality would look like: ::
 SQL
 ***
 
-The function must be in the form ``fetch(connection, table, name, i_time, i_end)``, where:
+The function must be in the form 
+``fetch(connection, table, name, interval, i_start, i_end)``, where:
 
 * **connection** A SQLAlchemy ``Connection``
 * **table** A SQLAlchemy ``Table``
 * **name** The name of the stat to fetch
 * **interval** The interval of the stat to fetch
-* **i_time** The interval timestamp key
+* **i_start** The interval timestamp (starting) key
 * **i_end** (optional) For a series, the ending timestamp key
 
 The return value should be in the form of ::
@@ -564,6 +634,46 @@ If the series doesn't use resolutions, then ``resolution_tNtN`` should be
 ``{ 'interval_tN: { None : <data_tN> } }``. This is inherent in the way that
 data is stored within the tables.
 
+If ``i_end`` is supplied, the query should be over the range 
+``i_time >= i_start AND i_time <= i_end``, else the query should be for
+the interval ``i_time = i_start``.
+
+Cassandra
+*********
+
+The function must be in the form 
+``fetch(connection, table, name, interval, i_start, i_end)``, where:
+
+* **cursor** A ``cql`` ``Connection``
+* **table** The name of the table
+* **name** The name of the stat to fetch
+* **interval** The interval of the stat to fetch
+* **i_start** The interval timestamp (starting) key
+* **i_end** (optional) For a series, the ending timestamp key
+
+The return value should be in the form of ::
+
+  { 
+    'interval_t0' : {
+      'resolution_t0t0' : <data_t0t0>,
+      'resolution_t0t1' : <data_t0t1>,
+      ...
+      'resolution_t0tN' : <data_t0tN>
+    },
+    'interval_t1' : { ... },
+    ...
+    'interval_tN' : { ... },
+  }
+
+If the series doesn't use resolutions, then ``resolution_tNtN`` should be 
+``None``, and so each interval will be in the form 
+``{ 'interval_tN: { None : <data_tN> } }`` and can be determined when a row
+has an ``r_time`` of ``-1``.
+
+If ``i_end`` is supplied, the query should be over the range 
+``i_time >= i_start AND i_time <= i_end``, else the query should be for
+the interval ``i_time = i_start``.
+
 
 Deleting Data
 -------------
@@ -575,6 +685,13 @@ delete
 
 Takes a single argument, the name of the timeseries. Will delete all data for 
 that timeseries in all intervals.
+
+delete_all
+**********
+
+Deletes every timeseries for all intervals. This method may be fast in data
+stores that support optimized deletes, else it will have to delete for each
+timeseries returned in ``list``.
 
 expire
 ******
@@ -631,17 +748,19 @@ defaulting to ``true``.
 * **TEST_REDIS** *true*
 * **TEST_MONGO** *true*
 * **TEST_SQL** *true*
+* **TEST_CASSANDRA** *true*
 * **TEST_SERIES** *true*
 * **TEST_HISTOGRAM** *true*
 * **TEST_COUNT** *true*
 * **TEST_GAUGE** *true*
 * **TEST_SET** *true*
 * **SQL_HOST** *sqlite:///:memory:*
-
+* **CASSANDRA_KEYSPACE** *kairos*
 
 Roadmap
 =======
 
+* Batch inserts
 * Round-robbin intervals for datastores without TTLs
 * Round-robbin databases: memcache (and compatible, e.g. ElastiCache), Riak,
   DynamoDB, SimpleDB, GDBM, Berkeley DB, and more
