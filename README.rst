@@ -2,7 +2,7 @@
 Kairos - Time series data storage
 =================================
 
-:Version: 0.7.1
+:Version: 0.8.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, time, timeseries, rrd, gevent, statistics
@@ -15,9 +15,9 @@ Kairos - Time series data storage
 Overview
 ========
 
-Kairos provides time series storage using Redis, Mongo or SQL backends. Kairos is 
-intended to replace RRD and Whisper in situations where the scale and 
-flexibility of other data stores is required. It works with
+Kairos provides time series storage using Redis, Mongo, SQL or Cassandra SQL 
+backends. Kairos is intended to replace RRD and Whisper in situations where 
+the scale and flexibility of other data stores is required. It works with
 `gevent <http://www.gevent.org/>`_ out of the box. Kairos is the library
 on which `torus <https://github.com/agoragames/torus>`_ is built.
 

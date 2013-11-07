@@ -1,5 +1,5 @@
-cassandra
-=========
+0.8.0
+=====
 
 Added support for Cassandra storage.
 
@@ -9,7 +9,6 @@ Changed behavior of sets to include storage of all datapoints, positive
 or negative.
 
 Added table name option to SQL stores.
-
 
 0.7.1
 =====
