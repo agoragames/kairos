@@ -8,6 +8,8 @@ Added limits when querying properties of a SQL stat.
 Changed behavior of sets to include storage of all datapoints, positive
 or negative.
 
+Added table name option to SQL stores.
+
 
 0.7.1
 =====

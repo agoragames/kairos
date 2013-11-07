@@ -748,6 +748,7 @@ defaulting to ``true``.
 * **TEST_REDIS** *true*
 * **TEST_MONGO** *true*
 * **TEST_SQL** *true*
+* **TEST_CASSANDRA** *true*
 * **TEST_SERIES** *true*
 * **TEST_HISTOGRAM** *true*
 * **TEST_COUNT** *true*
