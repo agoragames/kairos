@@ -110,6 +110,8 @@ class SqlBackend(Timeseries):
     else:
       raise ValueError("Unsupported type '%s'"%(vtype))
 
+    self._table_name = kwargs.get('table_name', self._table_name)
+
     super(SqlBackend,self).__init__(client, **kwargs)
 
   def list(self):
@@ -259,8 +261,9 @@ class SqlSeries(SqlBackend, Series):
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
+    self._table_name = 'series'
     super(SqlSeries,self).__init__(*a, **kwargs)
-    self._table = Table('series', self._metadata,
+    self._table = Table(self._table_name, self._metadata,
       Column('name', String(self._str_length), nullable=False),      # stat name
       Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('insert_time', Float, nullable=False),     # to preserve order
@@ -318,8 +321,9 @@ class SqlHistogram(SqlBackend, Histogram):
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
+    self._table_name = 'histogram'
     super(SqlHistogram,self).__init__(*a, **kwargs)
-    self._table = Table('histogram', self._metadata,
+    self._table = Table(self._table_name, self._metadata,
       Column('name', String(self._str_length), nullable=False),      # stat name
       Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp
@@ -404,8 +408,9 @@ class SqlCount(SqlBackend, Count):
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
+    self._table_name = 'count'
     super(SqlCount,self).__init__(*a, **kwargs)
-    self._table = Table('count', self._metadata,
+    self._table = Table(self._table_name, self._metadata,
       Column('name', String(self._str_length), nullable=False),      # stat name
       Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp
@@ -487,8 +492,9 @@ class SqlGauge(SqlBackend, Gauge):
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
+    self._table_name = 'gauge'
     super(SqlGauge,self).__init__(*a, **kwargs)
-    self._table = Table('gauge', self._metadata,
+    self._table = Table(self._table_name, self._metadata,
       Column('name', String(self._str_length), nullable=False),      # stat name
       Column('interval', String(self._str_length), nullable=False),  # interval name
       Column('i_time', Integer, nullable=False),        # interval timestamp

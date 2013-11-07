@@ -189,6 +189,9 @@ Additional keyword arguments are: ::
     Optional, configures the length of TEXT and BLOB columns. Defaults to 
     32Kbytes. Only matters if value_type is a text or blob.
 
+  table_name
+    Optional, overrides the default table name for a timeseries type.
+
   value_type
     Optional, defines the type of value to be stored in the timeseries. 
     Defaults to float. Can be a string, a Python type or a SQLAlchemy type
@@ -241,6 +244,38 @@ An example timeseries stored in Cassandra: ::
   t.insert('example', 3.14159)
   t.insert('example', 2.71828)
   print t.get('example', 'minute')
+
+Additional keyword arguments are: ::
+
+  table_name
+    Optional, overrides the default table name for a timeseries type.
+
+  value_type
+    Optional, defines the type of value to be stored in the timeseries. 
+    Defaults to float. Can be a string or a Python type.
+
+    <type 'unicode'>
+    string
+    decimal
+    <type 'long'>
+    int
+    double
+    unicode
+    float
+    long
+    <type 'bool'>
+    <type 'float'>
+    boolean
+    int64
+    str
+    text
+    blob
+    clob
+    integer
+    bool
+    <type 'str'>
+    <type 'int'>
+    inet
 
 kairos requires `cql <https://pypi.python.org/pypi/cql>`_ as it supports
 `CQL3 <https://cassandra.apache.org/doc/cql3/CQL.html>`_ and gevent. This 

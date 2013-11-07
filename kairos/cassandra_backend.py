@@ -13,6 +13,50 @@ from datetime import date, datetime
 from datetime import time as time_type
 from decimal import Decimal
 
+# Test python3 compatibility
+try:
+  x = long(1)
+except NameError:
+  long = int
+try:
+  x = unicode('foo')
+except NameError:
+  unicode = str
+
+TYPE_MAP = {
+  str         : 'ascii',
+  'str'       : 'ascii',
+  'string'    : 'ascii',
+
+  unicode     : 'text',  # works for py3 too
+  'unicode'   : 'text',
+
+  float       : 'float',
+  'float'     : 'float',
+
+  'double'    : 'double',
+
+  int         : 'int',
+  'int'       : 'int',
+  'integer'   : 'int',
+
+  long        : 'varint', # works for py3 too
+  'long'      : 'varint',
+  'int64'     : 'bigint',
+  
+  'decimal'   : 'decimal',
+
+  bool        : 'boolean',
+  'bool'      : 'boolean',
+  'boolean'   : 'boolean',
+
+  'text'      : 'text',
+  'clob'      : 'blob',
+  'blob'      : 'blob',
+
+  'inet'      : 'inet',
+}
+
 class CassandraBackend(Timeseries):
   
   def __new__(cls, *args, **kwargs):
@@ -37,6 +81,14 @@ class CassandraBackend(Timeseries):
     # Only CQL3 is supported
     if client.cql_major_version != 3:
       raise TypeError("Only CQL3 is supported")
+    
+    vtype = kwargs.get('value_type', float)
+    if vtype in TYPE_MAP:
+      self._value_type = TYPE_MAP[vtype]
+    else:
+      raise ValueError("Unsupported type '%s'"%(vtype))
+
+    self._table = kwargs.get('table_name', self._table)
     
     # TODO: support other value types, similar to the SQL driver
     super(CassandraBackend,self).__init__(client, **kwargs)
@@ -178,8 +230,8 @@ class CassandraBackend(Timeseries):
 class CassandraSeries(CassandraBackend, Series):
   
   def __init__(self, *a, **kwargs):
-    super(CassandraSeries,self).__init__(*a, **kwargs)
     self._table = 'series'
+    super(CassandraSeries,self).__init__(*a, **kwargs)
 
     cursor = self._client.cursor()
     # TODO: support other value types
@@ -190,9 +242,9 @@ class CassandraSeries(CassandraBackend, Series):
         interval text,
         i_time bigint,
         r_time bigint,
-        value list<float>,
+        value list<%s>,
         PRIMARY KEY(name, interval, i_time, r_time)
-      )'''%(self._table))
+      )'''%(self._table, self._value_type))
     except cql.ProgrammingError as pe:
       if 'existing' not in str(pe):
         raise
@@ -252,8 +304,8 @@ class CassandraSeries(CassandraBackend, Series):
 class CassandraHistogram(CassandraBackend, Histogram):
   
   def __init__(self, *a, **kwargs):
-    super(CassandraHistogram,self).__init__(*a, **kwargs)
     self._table = 'histogram'
+    super(CassandraHistogram,self).__init__(*a, **kwargs)
 
     # TODO: use varint for [ir]_time?
     # TODO: support other value types
@@ -264,10 +316,10 @@ class CassandraHistogram(CassandraBackend, Histogram):
         interval text,
         i_time bigint,
         r_time bigint,
-        value float,
+        value %s,
         count counter,
         PRIMARY KEY(name, interval, i_time, r_time, value)
-      )'''%(self._table))
+      )'''%(self._table, self._value_type))
     except cql.ProgrammingError as pe:
       if 'existing' not in str(pe):
         raise
@@ -328,8 +380,8 @@ class CassandraHistogram(CassandraBackend, Histogram):
 class CassandraCount(CassandraBackend, Count):
   
   def __init__(self, *a, **kwargs):
-    super(CassandraCount,self).__init__(*a, **kwargs)
     self._table = 'count'
+    super(CassandraCount,self).__init__(*a, **kwargs)
 
     # TODO: use varint for [ir]_time?
     # TODO: support other value types
@@ -402,8 +454,8 @@ class CassandraCount(CassandraBackend, Count):
 class CassandraGauge(CassandraBackend, Gauge):
   
   def __init__(self, *a, **kwargs):
-    super(CassandraGauge,self).__init__(*a, **kwargs)
     self._table = 'gauge'
+    super(CassandraGauge,self).__init__(*a, **kwargs)
 
     # TODO: use varint for [ir]_time?
     # TODO: support other value types
@@ -414,9 +466,9 @@ class CassandraGauge(CassandraBackend, Gauge):
         interval text,
         i_time bigint,
         r_time bigint,
-        value float,
+        value %s,
         PRIMARY KEY(name, interval, i_time, r_time)
-      )'''%(self._table))
+      )'''%(self._table, self._value_type))
     except cql.ProgrammingError as pe:
       if 'existing' not in str(pe):
         raise
@@ -476,8 +528,8 @@ class CassandraGauge(CassandraBackend, Gauge):
 class CassandraSet(CassandraBackend, Set):
   
   def __init__(self, *a, **kwargs):
-    super(CassandraSet,self).__init__(*a, **kwargs)
     self._table = 'sets'
+    super(CassandraSet,self).__init__(*a, **kwargs)
 
     # TODO: use varint for [ir]_time?
     # TODO: support other value types
@@ -488,9 +540,9 @@ class CassandraSet(CassandraBackend, Set):
         interval text,
         i_time bigint,
         r_time bigint,
-        value float,
+        value %s,
         PRIMARY KEY(name, interval, i_time, r_time, value)
-      )'''%(self._table))
+      )'''%(self._table, self._value_type))
     except cql.ProgrammingError as pe:
       if 'existing' not in str(pe):
         raise
