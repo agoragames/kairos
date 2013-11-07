@@ -20,9 +20,9 @@ setup(
     install_requires = requirements,
     url='https://github.com/agoragames/kairos',
     license="LICENSE.txt",
-    description='Time series data storage using Redis and Mongo',
+    description='Time series data storage in Redis, Mongo, SQL and Cassandra',
     long_description=open('README.rst').read(),
-    keywords=['python', 'redis', 'mongo', 'sql', 'mysql', 'sqlite', 'postgresql', 'time', 'timeseries', 'rrd', 'gevent', 'statistics'],
+    keywords=['python', 'redis', 'mongo', 'sql', 'mysql', 'sqlite', 'postgresql', 'cassandra', 'time', 'timeseries', 'rrd', 'gevent', 'statistics'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
