@@ -5,7 +5,7 @@ Kairos - Time series data storage
 :Version: 0.8.0
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
-:Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, time, timeseries, rrd, gevent, statistics
+:Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, cassandra, timeseries, rrd, gevent, statistics
 
 .. contents::
     :local:
@@ -15,15 +15,59 @@ Kairos - Time series data storage
 Overview
 ========
 
-Kairos provides time series storage using Redis, Mongo, SQL or Cassandra SQL 
+Kairos provides time series storage using Redis, Mongo, SQL or Cassandra 
 backends. Kairos is intended to replace RRD and Whisper in situations where 
 the scale and flexibility of other data stores is required. It works with
-`gevent <http://www.gevent.org/>`_ out of the box. Kairos is the library
-on which `torus <https://github.com/agoragames/torus>`_ is built.
+`gevent <http://www.gevent.org/>`_ and is the library on which
+`torus <https://github.com/agoragames/torus>`_ is built.
 
 Recommended for python 2.7 and later, it can work with previous versions if you
 install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
 
+Kairos provides a consistent API for a variety of timeseries types and the
+storage engines they're implemented in. Each timestamp is resolved to a 
+consistent bucket identifier ("interval") based on the number of whole seconds
+since epoch, or a number corresponding to the Gregorian date associated with
+the relative intervals  ``[daily, weekly, monthly, yearly]`` (e.g ``19990105``.
+Within that, data can optionally be stored at resolutions (e.g. "daily, 
+in 1 hour increments"). Multiple intervals can be tracked within a timeseries,
+each with its own resolution and optional TTL.
+
+In data stores that support it, TTLs can be set for automatically deleting 
+data after a set number of intervals; other data stores expose an ``expire()``
+method for deleting data programmatically.
+
+Within each interval (or resolution), data is stored according to the type of
+the timeseries and what each backend supports. The values tracked in each
+timeseries can be loosely typed for backends that support it, else the type
+will be whatever is set in the timeseries constructor. Even when loosely typed,
+it should be assumed that the value should be a string or number.
+
+series
+  All data will be stored in the order in which it arrives. Uses data store
+  list types where supported, else it will be timestamped records that 
+  come as close as possible to the order in which they were written. Queries
+  will return list objects.
+
+histogram
+  A hash of unique values to the number of its occurrences within an interval.
+  Uses data store dictionaries where supported, else it will be separate 
+  records for each unique value and timestamp. Queries will return dictionary
+  objects.
+
+count
+  A simple counter will be maintained for each interval. Queries will return
+  an integer.
+
+gauge
+  Stores the last-written value for each interval. Queries will return whatever
+  the value type was.
+
+set
+  Stores all the unique values within an interval. Uses data store sets where
+  supported, else it will be separate records for each unique value. Queries
+  will return set objects.
+    
 Usage
 =====
 
@@ -37,31 +81,25 @@ Constructor
 
 The first argument is a handle to a supported storage engine, and the rest of
 the keyword arguments configure the timeseries. The keyword arguments 
-supported by all storage engines are: ::
+supported by all storage engines are:
 
-  type
-    Optional, defaults to "series". Can be one of:
+type
+  Optional, defaults to "series". 
 
-    series - each interval will append values to a list
-    histogram - each interval will track count of unique values
-    count - each interval will maintain a single counter
-    gauge - each interval will store the most recent data point
-    set - each interval will store a set of unique values
+read_func
+  Optional, is a function applied to all values read back from the
+  database. Without it, values will be strings for Redis, whatever 
+  `write_func` defined for Mongo. Must accept a string value for Redis
+  (empty string for no data) and can return anything.
 
-  read_func
-    Optional, is a function applied to all values read back from the
-    database. Without it, values will be strings for Redis, whatever 
-    `write_func` defined for Mongo. Must accept a string value for Redis
-    (empty string for no data) and can return anything.
+write_func
+  Optional, is a function applied to all values when writing. Can be
+  used for histogram resolution, converting an object into an id, etc.
+  Must accept whatever can be inserted into a timeseries and return an
+  object which can be saved according to the rules of the storage engine.
 
-  write_func
-    Optional, is a function applied to all values when writing. Can be
-    used for histogram resolution, converting an object into an id, etc.
-    Must accept whatever can be inserted into a timeseries and return an
-    object which can be saved according to the rules of the storage engine.
-
-  intervals
-    Required, a dictionary of interval configurations in the form of: 
+intervals
+  Required, a dictionary of interval configurations in the form of: ::
 
     {
       # interval name, used in keys and should conform to best 
@@ -87,24 +125,20 @@ supported by all storage engines are: ::
       }
     }
 
-In addition to specifying ``step`` and ``resolution`` in terms of seconds, 
-kairos also supports a simplified format for larger time intervals. For
-hours (h), days (d), weeks (w), months (m) and years (y), you can use 
-the format ``30d`` to represent 30 days, for example.
+  In addition to specifying ``step`` and ``resolution`` in terms of seconds, 
+  kairos also supports a simplified format for larger time intervals. For
+  hours (h), days (d), weeks (w), months (m) and years (y), you can use 
+  the format ``30d`` to represent 30 days, for example.
 
-As of ``0.3.0``, kairos also supports the Gregorian calendar for ``step``
-and ``resolution``. Either or both parameters can use the terms ``[daily,
-weekly, monthly, yearly]`` to describe an interval. You can also mix these
-terms between ``step`` and ``resolution`` (e.g. ``daily`` in 
-``1h`` resolutions). The expiration time for Gregorian dates is still defined
-in terms of seconds and may not match the varying month lengths, leap years, 
-etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
-keys (**as integers**) and so may be easier to use in raw form or with any 
-external tools.
-
-Each retrieval function will by default return an ordered dictionary, though
-condensed results are also available. Run ``script/example`` to see standard
-output; ``watch -n 4 script/example`` is a useful tool as well.
+  As of ``0.3.0``, kairos also supports the Gregorian calendar for ``step``
+  and ``resolution``. Either or both parameters can use the terms ``[daily,
+  weekly, monthly, yearly]`` to describe an interval. You can also mix these
+  terms between ``step`` and ``resolution`` (e.g. ``daily`` in 
+  ``1h`` resolutions). The expiration time for Gregorian dates is still defined
+  in terms of seconds and may not match the varying month lengths, leap years, 
+  etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
+  keys (as integers) and so may be easier to use in raw form or with any 
+  external tools.
 
 Storage Engines
 ---------------
@@ -135,7 +169,7 @@ An example timeseries stored in Redis: ::
 Additional keyword arguments are: ::
 
   prefix
-    Optional, Redis only, is a prefix for all keys in this timeseries. If 
+    Optional, is a prefix for all keys in this timeseries. If 
     supplied and it doesn't end with ":", it will be automatically appended.
 
 Mongo
@@ -318,20 +352,11 @@ to ``1``.
 
 For the ``gauge`` type, ``value`` can be anything and it will be stored as-is.
 
-Data for all timeseries is stored in "buckets", where any Unix timestamp will
-resolve to a consistent bucket name according to the ``step`` and ``resolution``
-attributes of a schema. A bucket will contain the following data structures for
-the corresponding series type.
 
-* **series** list
-* **histogram** dictionary (map)
-* **count** integer or float
-* **gauge** value
+Meta Data
+---------
 
-Discovering Data
-----------------
-
-There are two methods to "discover" the data store in a Timeseries.
+There are two methods to query meta data about a Timeseries.
 
 list
 ****
@@ -380,7 +405,7 @@ Supports the following parameters. All optional parameters are keyword arguments
 
 Returns a dictionary of ``{ timestamp : data }``, where ``timestamp`` is a Unix timestamp
 and ``data`` is a data structure corresponding to the type of series, or whatever 
-``transform`` returns.  If not using resolutions or ``condensed=True``, the length 
+``transform`` returns.  If not using resolutions or ``condense=True``, the length 
 of the dictionary is 1, else it will be the number of resolution buckets within
 the interval that contained data. If ``transform`` is a list, ``data`` will be a 
 dictionary of ``{ transform_func : transformed_data }``. If ``transform`` is a ``dict``,
@@ -407,7 +432,7 @@ Almost identical to ``get``, supports the following parameters. All optional par
 Returns an ordered dictionary of ``{ interval_timestamp : { resolution_timestamp: data } }``,
 where ``interval_timestamp`` and ``resolution_timestamp`` are Unix timestamps
 and ``data`` is a data structure corresponding to the type of series, or whatever 
-``transform`` returns.  If not using resolutions or ``condensed=True``, the dictionary
+``transform`` returns.  If not using resolutions or ``condense=True``, the dictionary
 will be of the form ``{ interval_timestamp : data }``.
 
 All variations of ``transform`` and the resulting format of ``data`` are the same
@@ -438,9 +463,10 @@ Almost identical to ``get`` except it does not accept a ``timestamp`` argument.
 * **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
 * **join_rows** `(optional)` Can be a callable to implement `Customized Reads`_.
 
-Returns a generator which iterates over ``( timestamp : data )`` tuples, where
+Returns a generator which iterates over ``( timestamp, data )`` tuples, where
 ``timestamp`` is a Unix timestamp and ``data`` corresponds to the rules
-documented in ``get``.
+documented in ``get``. Yields a tuple for each potential timestamp in the
+entire date range of the timeseries, even if there is no data. 
 
 
 Customized Reads
@@ -472,7 +498,6 @@ which are described in detail below.
 **IMPORTANT** You are welcome to change the type of the return value, but be
 wary that transforms, condense and collapse functionality may not work
 properly with the changed data types.
-
 
 process_row
 ###########
@@ -560,7 +585,6 @@ transform
 As noted previously, ``transform`` can be any callable, list of names or callables,
 or a named map of transform names or callables. The transforms will be processed 
 after all previous native or custom read functions, including ``collapse``.
-
 
 Redis
 *****
@@ -678,8 +702,6 @@ the interval ``i_time = i_start``.
 Deleting Data
 -------------
 
-There are two methods to delete data.
-
 delete
 ******
 
@@ -704,7 +726,7 @@ for which ``steps`` is defined. All other storage engines will raise the
 Dragons!
 --------
 
-Kairos achieves its efficiency by using Redis or Mongo TTLs and data structures
+Kairos achieves its efficiency by using TTLs and data structures
 in combination with a key naming scheme that generates consistent keys based on
 any timestamp relative to epoch. However, just like 
 `RRDtool <http://oss.oetiker.ch/rrdtool/>`_, changing any attribute of the
@@ -712,11 +734,15 @@ timeseries means that new data will be stored differently than old data. For
 this reason it's best to completely delete all data in an old time series
 before creating or querying using a new configuration.
 
+If you want to migrate data, there are tools in 
+`torus <https://github.com/agoragames/torus>`_ that can help.
+
 
 Installation
 ============
 
-Kairos is available on `pypi <http://pypi.python.org/pypi/kairos>`_ and can be installed using ``pip`` ::
+Kairos is available on `pypi <http://pypi.python.org/pypi/kairos>`_ and can be
+installed using ``pip`` ::
 
   pip install kairos
 
@@ -731,9 +757,8 @@ If installing from source:
 
     pip install -r requirements.pip
 
-Note that kairos does not by default require the redis package, nor does
-it require `hiredis <http://pypi.python.org/pypi/hiredis>`_ though it is
-strongly recommended.
+Note that kairos does not install packages for any of the supported backends,
+and that you must do this yourself.
 
 Tests
 =====
