@@ -284,6 +284,10 @@ Additional keyword arguments are: ::
   table_name
     Optional, overrides the default table name for a timeseries type.
 
+  pool_size
+    Optional, set a cap on the pool size. Defines the maximum number of
+    connections to maintain in the pool. Defaults to 0 for no maximum.
+
   value_type
     Optional, defines the type of value to be stored in the timeseries. 
     Defaults to float. Can be a string or a Python type.
@@ -325,6 +329,11 @@ is ready.
 
 Cassandra counters can only store integers, and cannot be used for a 
 running total of floating point numbers.
+
+Kairos implements a connection pooling mechanism on top of `cql`. The pool
+is a simple soft-cap on the number of connections maintained in the pool,
+but not necessarily the total number of connections at a time. An optional
+hard cap may be implemented in a future release.
 
 Inserting Data
 --------------
