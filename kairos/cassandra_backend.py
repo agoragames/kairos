@@ -13,6 +13,7 @@ from datetime import date, datetime
 from datetime import time as time_type
 from decimal import Decimal
 from Queue import Queue, Empty, Full
+import re
 
 # Test python3 compatibility
 try:
@@ -57,6 +58,9 @@ TYPE_MAP = {
 
   'inet'      : 'inet',
 }
+
+QUOTE_TYPES = set(['ascii','text','blob'])
+QUOTE_MATCH = re.compile("^'.*'$")
 
 def scoped_connection(func):
   '''
@@ -152,6 +156,9 @@ class CassandraBackend(Timeseries):
     '''
     Insert the new value.
     '''
+    if self._value_type in QUOTE_TYPES and not QUOTE_MATCH.match(value):
+      value = "'%s'"%(value)
+      
     for interval,config in self._intervals.items():
       self._insert_data(name, value, timestamp, interval, config)
       steps = intervals
