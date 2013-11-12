@@ -681,8 +681,7 @@ The function must be in the form
 * **table** The name of the table
 * **name** The name of the stat to fetch
 * **interval** The interval of the stat to fetch
-* **i_start** The interval timestamp (starting) key
-* **i_end** (optional) For a series, the ending timestamp key
+* **intervals** The list of interval timestamps
 
 The return value should be in the form of ::
 
@@ -703,9 +702,11 @@ If the series doesn't use resolutions, then ``resolution_tNtN`` should be
 ``{ 'interval_tN: { None : <data_tN> } }`` and can be determined when a row
 has an ``r_time`` of ``-1``.
 
-If ``i_end`` is supplied, the query should be over the range 
-``i_time >= i_start AND i_time <= i_end``, else the query should be for
-the interval ``i_time = i_start``.
+If ``intervals`` is a list of 1, it's effectively a ``get`` query where
+``i_time = intervals[0]``, else it's ``i_time >= intervals[0] AND
+i_time <= intervals[-1]``. The full list of intervals is supplied to workaround
+Cassandra's lack of grouping support in situations where an aggregate per
+``i_time`` is desired.
 
 
 Deleting Data

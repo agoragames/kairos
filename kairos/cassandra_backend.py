@@ -184,7 +184,7 @@ class CassandraBackend(Timeseries):
 
     rval = OrderedDict()
     if fetch:
-      data = fetch( connection, self._table, name, interval, i_bucket )
+      data = fetch( connection, self._table, name, interval, [i_bucket] )
     else:
       data = self._type_get(name, interval, i_bucket)
 
@@ -210,7 +210,7 @@ class CassandraBackend(Timeseries):
     rval = OrderedDict()
 
     if fetch:
-      data = fetch( connection, self._table, name, interval, buckets[0], buckets[-1] )
+      data = fetch( connection, self._table, name, interval, buckets )
     else:
       data = self._type_get(name, interval, buckets[0], buckets[-1])
 
