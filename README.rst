@@ -284,6 +284,10 @@ Additional keyword arguments are: ::
   table_name
     Optional, overrides the default table name for a timeseries type.
 
+  pool_size
+    Optional, set a cap on the pool size. Defines the maximum number of
+    connections to maintain in the pool. Defaults to 0 for no maximum.
+
   value_type
     Optional, defines the type of value to be stored in the timeseries. 
     Defaults to float. Can be a string or a Python type.
@@ -325,6 +329,11 @@ is ready.
 
 Cassandra counters can only store integers, and cannot be used for a 
 running total of floating point numbers.
+
+Kairos implements a connection pooling mechanism on top of `cql`. The pool
+is a simple soft-cap on the number of connections maintained in the pool,
+but not necessarily the total number of connections at a time. An optional
+hard cap may be implemented in a future release.
 
 Inserting Data
 --------------
@@ -672,8 +681,7 @@ The function must be in the form
 * **table** The name of the table
 * **name** The name of the stat to fetch
 * **interval** The interval of the stat to fetch
-* **i_start** The interval timestamp (starting) key
-* **i_end** (optional) For a series, the ending timestamp key
+* **intervals** The list of interval timestamps
 
 The return value should be in the form of ::
 
@@ -694,9 +702,11 @@ If the series doesn't use resolutions, then ``resolution_tNtN`` should be
 ``{ 'interval_tN: { None : <data_tN> } }`` and can be determined when a row
 has an ``r_time`` of ``-1``.
 
-If ``i_end`` is supplied, the query should be over the range 
-``i_time >= i_start AND i_time <= i_end``, else the query should be for
-the interval ``i_time = i_start``.
+If ``intervals`` is a list of 1, it's effectively a ``get`` query where
+``i_time = intervals[0]``, else it's ``i_time >= intervals[0] AND
+i_time <= intervals[-1]``. The full list of intervals is supplied to workaround
+Cassandra's lack of grouping support in situations where an aggregate per
+``i_time`` is desired.
 
 
 Deleting Data
