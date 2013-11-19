@@ -41,6 +41,7 @@ class MongoBackend(Timeseries):
     elif not isinstance(client, pymongo.database.Database):
       raise TypeError('Mongo handle must be MongoClient or database instance')
 
+    self._escape_character = kwargs.get('escape_character', u"\U0000FFFF")
     super(MongoBackend,self).__init__(client, **kwargs)
     
     # Define the indices for lookups and TTLs
@@ -63,6 +64,19 @@ class MongoBackend(Timeseries):
       if config['expire']:
         self._client[interval].ensure_index( 
           [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
+
+  def _unescape(self, value):
+    '''
+    Recursively unescape values. Though slower, this doesn't require the user to
+    know anything about the escaping when writing their own custom fetch functions.
+    '''
+    if isinstance(value, (str,unicode)):
+      return value.replace(self._escape_character, '.')
+    elif isinstance(value, dict):
+      return { self._unescape(k) : self._unescape(v) for k,v in value.items() }
+    elif isinstance(value, list):
+      return [ self._unescape(v) for v in value ]
+    return value
 
   def list(self):
     rval = set()
@@ -129,6 +143,14 @@ class MongoBackend(Timeseries):
 
     # switch to atomic updates
     insert = {'$set':insert.copy()}
+
+    # need to hide the period of any values. best option seems to be to pick 
+    # a character that "no one" uses.
+    if isinstance(value, (str,unicode)):
+      value = value.replace('.', self._escape_character)
+    elif isinstance(value, float):
+      value = str(value).replace('.', self._escape_character)
+      
     self._insert_type( insert, value )
 
     # TODO: use write preference settings if we have them
@@ -151,7 +173,7 @@ class MongoBackend(Timeseries):
         record = self._client[interval].find_one( query )
 
       if record:
-        data = process_row( record['value'] )
+        data = process_row( self._unescape(record['value']) )
         rval[ config['i_calc'].from_bucket(i_bucket) ] = data
       else:
         rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
