@@ -9,6 +9,9 @@ hiredis>=0.1.0
 # Required pymongo
 pymongo>=2.5
 
+# Required cql
+cql==1.4.0
+
 # mocking framework
 chai>=0.3.1
 
