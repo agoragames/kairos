@@ -2,7 +2,7 @@
 Kairos - Time series data storage
 =================================
 
-:Version: 0.8.0
+:Version: 0.8.1
 :Download: http://pypi.python.org/pypi/kairos
 :Source: https://github.com/agoragames/kairos
 :Keywords: python, redis, mongo, sql, mysql, sqlite, postgresql, cassandra, timeseries, rrd, gevent, statistics
@@ -181,7 +181,7 @@ An example timeseries stored in Mongo: ::
   import pymongo
 
   client = pymongo.MongoClient('localhost')
-  t = Timeseries(client, type='histogram', read_func=int, intervals={
+  t = Timeseries(client, type='histogram', read_func=float, intervals={
     'minute':{
       'step':60,            # 60 seconds
       'steps':120,          # last 2 hours
@@ -191,6 +191,12 @@ An example timeseries stored in Mongo: ::
   t.insert('example', 3.14159)
   t.insert('example', 2.71828)
   print t.get('example', 'minute')
+
+Additional keyword arguments are: ::
+
+  escape_character
+    Optional, defines the character used to escape periods. Defaults to the
+    unicode character "U+FFFF". 
 
 SQL
 ***
@@ -801,6 +807,7 @@ Roadmap
   DynamoDB, SimpleDB, GDBM, Berkeley DB, and more
 * Redis optimizations
 * Capped collection support for mongo
+* Python 3 support
 * InfluxDB support
 * Bloom filters
 * Joined series populate a data structure at query time

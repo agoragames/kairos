@@ -1,4 +1,15 @@
+0.8.1
+=====
 
+Implemented gevent-compatible Cassandra connection pooling.
+
+Changed the API for Cassandra custom fetch functions.
+
+Any value inserted into a timeseries of ascii, text, blob type will be 
+auto-quoted with single quote.
+
+Fixed mongo escaping of values with periods by replacing with "U+FFFF"
+unicode character.
 
 0.8.0
 =====
