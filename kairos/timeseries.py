@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -86,7 +86,7 @@ class RelativeTime(object):
     '''
     start_bucket = self.to_bucket(start)
     end_bucket = self.to_bucket(end)
-    return range(start_bucket, end_bucket+1) 
+    return range(start_bucket, end_bucket+1)
 
   def normalize(self, timestamp, steps=0):
     '''
@@ -121,7 +121,7 @@ class GregorianTime(object):
     'monthly' : '%Y%m',
     'yearly'  : '%Y'
   }
-  
+
   def __init__(self, step='daily'):
     self._step = step
 
@@ -179,7 +179,7 @@ class GregorianTime(object):
       rval.append( bucket )
       step += 1
 
-    return rval 
+    return rval
 
   def normalize(self, timestamp, steps=0):
     '''
@@ -195,8 +195,8 @@ class GregorianTime(object):
     or we're otherwise unable to calculate one.
     '''
     if steps:
-      # Approximate the ttl based on number of seconds, since it's 
-      # "close enough" 
+      # Approximate the ttl based on number of seconds, since it's
+      # "close enough"
       return steps * SIMPLE_TIMES[ self._step[0] ]
 
     return None
@@ -206,10 +206,10 @@ class Timeseries(object):
   Base class of all time series. Also acts as a factory to return the correct
   subclass if "type=" keyword argument supplied.
   '''
-  
+
   def __new__(cls, client, **kwargs):
     if cls==Timeseries:
-      # load a backend based on the name of the client module 
+      # load a backend based on the name of the client module
       client_module = client.__module__.split('.')[0]
       backend = BACKENDS.get( client_module )
       if backend:
@@ -221,7 +221,7 @@ class Timeseries(object):
   def __init__(self, client, **kwargs):
     '''
     Create a time series using a given redis client and keyword arguments
-    defining the series configuration. 
+    defining the series configuration.
 
     Optionally provide a prefix for all keys. If prefix length>0 and it
     doesn't end with ":", it will be automatically appended. Redis only.
@@ -256,13 +256,13 @@ class Timeseries(object):
       object which can be cast to a string.
 
     intervals
-      Required, a dictionary of interval configurations in the form of: 
+      Required, a dictionary of interval configurations in the form of:
 
       {
         # interval name, used in redis keys and should conform to best practices
         # and not include ":"
         minute: {
-          
+
           # Required. The number of seconds that the interval will cover
           step: 60,
 
@@ -271,16 +271,16 @@ class Timeseries(object):
           # exist in perpetuity.
           steps: 240,
 
-          # Optional. Defines the resolution of the data, i.e. the number of 
+          # Optional. Defines the resolution of the data, i.e. the number of
           # seconds in which data is assumed to have occurred "at the same time".
-          # So if you're tracking a month long time series, you may only need 
+          # So if you're tracking a month long time series, you may only need
           # resolution down to the day, or resolution=86400. Defaults to same
           # value as "step".
           resolution: 60,
         }
       }
     '''
-    # Process the configuration first so that the backends can use that to 
+    # Process the configuration first so that the backends can use that to
     # complete their setup.
     # Prefix is determined by the backend implementation.
     self._client = client
@@ -294,7 +294,7 @@ class Timeseries(object):
       config['interval'] = interval
       step = config['step'] = _resolve_time( config['step'] ) # Required
       steps = config.get('steps',None)       # Optional
-      resolution = config['resolution'] = _resolve_time( 
+      resolution = config['resolution'] = _resolve_time(
         config.get('resolution',config['step']) ) # Optional
 
       if step in GREGORIAN_TIMES:
@@ -306,13 +306,13 @@ class Timeseries(object):
         resolution_calc = GregorianTime(resolution)
       else:
         resolution_calc = RelativeTime(resolution)
-      
+
       expire = False
       if steps: expire = step*steps
-      
+
       config['i_calc'] = interval_calc
       config['r_calc'] = resolution_calc
-      
+
       config['expire'] = interval_calc.ttl( steps )
       config['coarse'] = (resolution==step)
 
@@ -336,7 +336,7 @@ class Timeseries(object):
 
   def insert(self, name, value, timestamp=None, intervals=0):
     '''
-    Insert a value for the timeseries "name". For each interval in the 
+    Insert a value for the timeseries "name". For each interval in the
     configuration, will insert the value into a bucket for the interval
     "timestamp". If time is not supplied, will default to time.time(), else it
     should be a floating point value.
@@ -371,7 +371,7 @@ class Timeseries(object):
 
   def delete(self, name):
     '''
-    Delete all data in a timeseries. Subclasses are responsible for 
+    Delete all data in a timeseries. Subclasses are responsible for
     implementing this.
     '''
     raise NotImplementedError()
@@ -415,22 +415,22 @@ class Timeseries(object):
     '''
     Get the set of values for a named timeseries and interval. If timestamp
     supplied, will fetch data for the period of time in which that timestamp
-    would have fallen, else returns data for "now". If the timeseries 
+    would have fallen, else returns data for "now". If the timeseries
     resolution was not defined, then returns a simple list of values for the
-    interval, else returns an ordered dict where the keys define the resolution 
-    interval and the values are the time series data in that (sub)interval. 
+    interval, else returns an ordered dict where the keys define the resolution
+    interval and the values are the time series data in that (sub)interval.
     This allows the user to interpolate sparse data sets.
 
     If transform is defined, will utilize one of `[mean, count, min, max, sum]`
     to process each row of data returned. If the transform is a callable, will
     pass an array of data to the function. Note that the transform will be run
     after the data is condensed. If the transform is a list, then each row will
-    return a hash of the form { transform_name_or_func : transformed_data }. 
-    If the transform is a hash, then it should be of the form 
+    return a hash of the form { transform_name_or_func : transformed_data }.
+    If the transform is a hash, then it should be of the form
     { transform_name : transform_func } and will return the same structure as
     a list argument.
 
-    Raises UnknownInterval if `interval` is not one of the configured 
+    Raises UnknownInterval if `interval` is not one of the configured
     intervals.
 
     TODO: Fix this method doc
@@ -475,7 +475,7 @@ class Timeseries(object):
     Support for the insert per type of series.
     '''
     raise NotImplementedError()
-  
+
   def series(self, name, interval, **kwargs):
     '''
     Return all the data in a named time series for a given interval. If steps
@@ -511,7 +511,7 @@ class Timeseries(object):
     # If collapse, also condense
     if collapse: condense = condense or True
 
-    # Fugly range determination, all to get ourselves a start and end 
+    # Fugly range determination, all to get ourselves a start and end
     # timestamp. Adjust steps argument to include the anchoring date.
     if end is None:
       if start is None:
@@ -527,13 +527,13 @@ class Timeseries(object):
         start_bucket = config['i_calc'].to_bucket( end, (-steps+1) )
       else:
         start_bucket = config['i_calc'].to_bucket( start )
-      
+
     # Now that we have start and end buckets, convert them back to normalized
     # time stamps and then back to buckets. :)
     start = config['i_calc'].from_bucket( start_bucket )
     end = config['i_calc'].from_bucket( end_bucket )
     if start > end: end = start
-    
+
     interval_buckets = config['i_calc'].buckets(start, end)
 
     # If name is a list, then join all of results. It is more efficient to
@@ -575,7 +575,7 @@ class Timeseries(object):
       elif transform:
         for key,data in rval.items():
           rval[key] = self._process_transform(data, transform)
-    
+
     return rval
 
   def _series(self, name, interval, config, buckets, **kws):
@@ -636,7 +636,7 @@ class Timeseries(object):
 
   def _condense(self, data):
     '''
-    Condense a mapping of timestamps and associated data into a single 
+    Condense a mapping of timestamps and associated data into a single
     object/value which will be mapped back to a timestamp that covers all
     of the data.
     '''
@@ -737,7 +737,7 @@ class Histogram(Timeseries):
       if self._read_func: value = self._read_func(value)
       rval[ value ] = int(count)
     return rval
-  
+
   def _condense(self, data):
     '''
     Condense by adding together all of the lists.
@@ -775,7 +775,7 @@ class Count(Timeseries):
     if callable(transform):
       data = transform(data)
     return data
-  
+
   def insert(self, name, value=1, timestamp=None, **kwargs):
     super(Count,self).insert(name, value, timestamp, **kwargs)
 

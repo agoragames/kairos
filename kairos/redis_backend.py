@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -87,7 +87,7 @@ class RedisBackend(Timeseries):
         rval.pop(interval)
 
     return rval
-  
+
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the value.
@@ -153,8 +153,8 @@ class RedisBackend(Timeseries):
     i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
     fetch = kws.get('fetch') or self._type_get
     process_row = kws.get('process_row') or self._process_row
-    
-    rval = OrderedDict()    
+
+    rval = OrderedDict()
     if config['coarse']:
       data = process_row( fetch(self._client, i_key) )
       rval[ config['i_calc'].from_bucket(i_bucket) ] = data
@@ -213,7 +213,7 @@ class RedisBackend(Timeseries):
           # TODO: use closures on the config for generating this resolution key
           resolution_key = '%s:%s'%(interval_key, bucket)
           fetch(pipe, resolution_key)
-        
+
         resolution_res = pipe.execute()
         for x,data in enumerate(resolution_res):
           i_t = config['i_calc'].from_bucket(interval_bucket)
@@ -258,18 +258,18 @@ class RedisCount(RedisBackend, Count):
         handle.incrbyfloat(key, value)
       else:
         handle.incr(key,value)
-  
+
   def _type_get(self, handle, key):
     return handle.get(key)
 
 class RedisGauge(RedisBackend, Gauge):
-  
+
   def _type_insert(self, handle, key, value):
     '''
     Insert the value into the series.
     '''
     handle.set(key, value)
-  
+
   def _type_get(self, handle, key):
     return handle.get(key)
 

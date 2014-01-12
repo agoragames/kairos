@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -64,7 +64,7 @@ TYPE_MAP = {
 }
 
 class SqlBackend(Timeseries):
-  
+
   def __new__(cls, *args, **kwargs):
     if cls==SqlBackend:
       ttype = kwargs.pop('type', None)
@@ -85,7 +85,7 @@ class SqlBackend(Timeseries):
     self._metadata = MetaData()
     self._str_length = kwargs.get('string_length',255)
     self._txt_length = kwargs.get('text_length', 32*1024)
-    
+
     vtype = kwargs.get('value_type', float)
     if vtype in TYPE_MAP:
       self._value_type = TYPE_MAP[vtype]
@@ -138,7 +138,7 @@ class SqlBackend(Timeseries):
       ).order_by( asc(self._table.c.i_time) ).limit(1)
       rval[interval]['first'] = config['i_calc'].from_bucket(
         connection.execute(stmt).first()['i_time'] )
-      
+
       stmt = select([self._table.c.i_time]).where(
         and_(
           self._table.c.name==name,
@@ -186,7 +186,7 @@ class SqlBackend(Timeseries):
           i_timestamp = config['i_calc'].normalize(timestamp, steps)
           self._insert_data(name, value, i_timestamp, interval, config)
           steps -= 1
-  
+
   def _get(self, name, interval, config, timestamp, **kws):
     '''
     Get the interval.
@@ -209,7 +209,7 @@ class SqlBackend(Timeseries):
     else:
       for r_bucket,row_data in data.values()[0].items():
         rval[ config['r_calc'].from_bucket(r_bucket) ] = process_row(row_data)
-    
+
     return rval
 
   def _series(self, name, interval, config, buckets, **kws):
@@ -245,7 +245,7 @@ class SqlBackend(Timeseries):
               rval[i_key][r_key] = process_row(r_data)
             else:
               rval[i_key][r_key] = self._type_no_value()
-    
+
     return rval
 
   def delete(self, name):
@@ -257,7 +257,7 @@ class SqlBackend(Timeseries):
     conn.execute( self._table.delete().where(self._table.c.name==name) )
 
 class SqlSeries(SqlBackend, Series):
-  
+
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
@@ -272,7 +272,7 @@ class SqlSeries(SqlBackend, Series):
       Column('value', self._value_type, nullable=False)            # datas
     )
     self._metadata.create_all(self._client)
-  
+
   def _insert_data(self, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
     kwargs = {
@@ -317,7 +317,7 @@ class SqlSeries(SqlBackend, Series):
     return rval
 
 class SqlHistogram(SqlBackend, Histogram):
-  
+
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
@@ -335,7 +335,7 @@ class SqlHistogram(SqlBackend, Histogram):
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', 'value', name='unique_value')
     )
     self._metadata.create_all(self._client)
-  
+
   def _insert_data(self, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()
@@ -404,7 +404,7 @@ class SqlHistogram(SqlBackend, Histogram):
     return rval
 
 class SqlCount(SqlBackend, Count):
-  
+
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
@@ -421,7 +421,7 @@ class SqlCount(SqlBackend, Count):
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', name='unique_count')
     )
     self._metadata.create_all(self._client)
-  
+
   def _insert_data(self, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()
@@ -488,7 +488,7 @@ class SqlCount(SqlBackend, Count):
     return rval
 
 class SqlGauge(SqlBackend, Gauge):
-  
+
   def __init__(self, *a, **kwargs):
     # TODO: define indices
     # TODO: optionally create separate tables for each interval, like mongo?
@@ -505,7 +505,7 @@ class SqlGauge(SqlBackend, Gauge):
       UniqueConstraint('name', 'interval', 'i_time', 'r_time', name='unique_count')
     )
     self._metadata.create_all(self._client)
-  
+
   def _insert_data(self, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()

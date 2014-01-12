@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -43,26 +43,26 @@ class MongoBackend(Timeseries):
 
     self._escape_character = kwargs.get('escape_character', u"\U0000FFFF")
     super(MongoBackend,self).__init__(client, **kwargs)
-    
+
     # Define the indices for lookups and TTLs
     for interval,config in self._intervals.items():
       # TODO: the interval+(resolution+)name combination should be unique,
       # but should the index be defined as such? Consider performance vs.
-      # correctness tradeoff. Also will need to determine if we need to 
+      # correctness tradeoff. Also will need to determine if we need to
       # maintain this multikey index or if there's a better way to implement
       # all the features. Lastly, determine if it's better to add 'value'
       # to the index and spec the fields in get() and series() so that we
       # get covered indices. There are reasons why that might be a
       # configuration option (performance vs. memory tradeoff)
       if config['coarse']:
-        self._client[interval].ensure_index( 
+        self._client[interval].ensure_index(
           [('interval',ASCENDING),('name',ASCENDING)], background=True )
       else:
-        self._client[interval].ensure_index( 
+        self._client[interval].ensure_index(
           [('interval',ASCENDING),('resolution',ASCENDING),('name',ASCENDING)],
           background=True )
       if config['expire']:
-        self._client[interval].ensure_index( 
+        self._client[interval].ensure_index(
           [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
 
   def _unescape(self, value):
@@ -95,14 +95,14 @@ class MongoBackend(Timeseries):
       rval[interval]['last'] = config['i_calc'].from_bucket(res['interval'])
 
     return rval
-      
+
 
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the new value.
     '''
     # Mongo does not allow mixing atomic modifiers and non-$set sets in the
-    # same update, so the choice is to either run the first upsert on 
+    # same update, so the choice is to either run the first upsert on
     # {'_id':id} to ensure the record is in place followed by an atomic update
     # based on the series type, or use $set for all of the keys to be used in
     # creating the record, which then disallows setting our own _id because
@@ -113,7 +113,7 @@ class MongoBackend(Timeseries):
     #     overhead of that index match vs. the presumably-faster match on _id
     #   * Yet another index for the would-be _id of i_key or r_key, where each
     #     index has a notable impact on write performance.
-    # For now, choosing to go with matching on the tuple until performance 
+    # For now, choosing to go with matching on the tuple until performance
     # testing can be done. Even then, there may be a variety of factors which
     # make the results situation-dependent.
     # TODO: confirm that this is in fact using the indices correctly.
@@ -144,13 +144,13 @@ class MongoBackend(Timeseries):
     # switch to atomic updates
     insert = {'$set':insert.copy()}
 
-    # need to hide the period of any values. best option seems to be to pick 
+    # need to hide the period of any values. best option seems to be to pick
     # a character that "no one" uses.
     if isinstance(value, (str,unicode)):
       value = value.replace('.', self._escape_character)
     elif isinstance(value, float):
       value = str(value).replace('.', self._escape_character)
-      
+
     self._insert_type( insert, value )
 
     # TODO: use write preference settings if we have them
@@ -202,12 +202,12 @@ class MongoBackend(Timeseries):
     resolution = config.get('resolution',step)
     fetch = kws.get('fetch')
     process_row = kws.get('process_row', self._process_row)
-    
+
     query = { 'name':name, 'interval':{'$gte':buckets[0], '$lte':buckets[-1]} }
     sort = [('interval', ASCENDING)]
     if not config['coarse']:
       sort.append( ('resolution', ASCENDING) )
-    
+
     if fetch:
       cursor = fetch( self._client[interval], spec=query, sort=sort, method='find' )
     else:
@@ -231,7 +231,7 @@ class MongoBackend(Timeseries):
       rval[ config['i_calc'].from_bucket(buckets.pop(0)) ] = self._type_no_value()
 
     return rval
-  
+
   def delete(self, name):
     '''
     Delete time series by name across all intervals. Returns the number of
@@ -246,21 +246,21 @@ class MongoBackend(Timeseries):
     return num_deleted
 
 class MongoSeries(MongoBackend, Series):
-  
+
   def _insert_type(self, spec, value):
     spec['$push'] = {'value':value}
 
 class MongoHistogram(MongoBackend, Histogram):
-  
+
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value.%s'%(value): 1}
 
 class MongoCount(MongoBackend, Count):
-  
+
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value':value}
 
 class MongoGauge(MongoBackend, Gauge):
-  
+
   def _insert_type(self, spec, value):
     spec['$set']['value'] = value

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -45,7 +45,7 @@ TYPE_MAP = {
   long        : 'varint', # works for py3 too
   'long'      : 'varint',
   'int64'     : 'bigint',
-  
+
   'decimal'   : 'decimal',
 
   bool        : 'boolean',
@@ -76,7 +76,7 @@ def scoped_connection(func):
   return _with
 
 class CassandraBackend(Timeseries):
-  
+
   def __new__(cls, *args, **kwargs):
     if cls==CassandraBackend:
       ttype = kwargs.pop('type', None)
@@ -91,7 +91,7 @@ class CassandraBackend(Timeseries):
       elif ttype=='set':
         return CassandraSet.__new__(CassandraSet, *args, **kwargs)
     return Timeseries.__new__(cls, *args, **kwargs)
-  
+
   def __init__(self, client, **kwargs):
     '''
     Initialize the sql backend after timeseries has processed the configuration.
@@ -99,7 +99,7 @@ class CassandraBackend(Timeseries):
     # Only CQL3 is supported
     if client.cql_major_version != 3:
       raise TypeError("Only CQL3 is supported")
-    
+
     vtype = kwargs.get('value_type', float)
     if vtype in TYPE_MAP:
       self._value_type = TYPE_MAP[vtype]
@@ -119,7 +119,7 @@ class CassandraBackend(Timeseries):
     self._credentials = client.credentials
     self._pool = Queue(kwargs.get('pool_size',0))
     self._pool.put( client )
-    
+
     super(CassandraBackend,self).__init__(client, **kwargs)
 
   def _connection(self):
@@ -149,16 +149,16 @@ class CassandraBackend(Timeseries):
     try:
       self._pool.put(connection, False)
     except Full:
-      # do not return connection to the pool. 
+      # do not return connection to the pool.
       pass
-  
+
   def _insert(self, name, value, timestamp, intervals):
     '''
     Insert the new value.
     '''
     if self._value_type in QUOTE_TYPES and not QUOTE_MATCH.match(value):
       value = "'%s'"%(value)
-      
+
     for interval,config in self._intervals.items():
       self._insert_data(name, value, timestamp, interval, config)
       steps = intervals
@@ -172,7 +172,7 @@ class CassandraBackend(Timeseries):
           i_timestamp = config['i_calc'].normalize(timestamp, steps)
           self._insert_data(name, value, i_timestamp, interval, config)
           steps -= 1
-  
+
   @scoped_connection
   def _get(self, connection, name, interval, config, timestamp, **kws):
     '''
@@ -196,9 +196,9 @@ class CassandraBackend(Timeseries):
     else:
       for r_bucket,row_data in data.values()[0].items():
         rval[ config['r_calc'].from_bucket(r_bucket) ] = process_row(row_data)
-    
+
     return rval
-  
+
   @scoped_connection
   def _series(self, connection, name, interval, config, buckets, **kws):
     '''
@@ -233,9 +233,9 @@ class CassandraBackend(Timeseries):
               rval[i_key][r_key] = process_row(r_data)
             else:
               rval[i_key][r_key] = self._type_no_value()
-    
+
     return rval
-  
+
   @scoped_connection
   def delete(self, connection, name):
     cursor = connection.cursor()
@@ -251,7 +251,7 @@ class CassandraBackend(Timeseries):
       cursor.execute("TRUNCATE %s"%(self._table))
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def list(self, connection):
     cursor = connection.cursor()
@@ -274,16 +274,16 @@ class CassandraBackend(Timeseries):
       for interval,config in self._intervals.items():
         rval.setdefault(interval, {})
 
-        cursor.execute('''SELECT i_time 
+        cursor.execute('''SELECT i_time
           FROM %s
           WHERE name = '%s' AND interval = '%s'
           ORDER BY interval ASC, i_time ASC
           LIMIT 1'''%(self._table, name, interval))
-          
+
         rval[interval]['first'] = config['i_calc'].from_bucket(
           cursor.fetchone()[0] )
-        
-        cursor.execute('''SELECT i_time 
+
+        cursor.execute('''SELECT i_time
           FROM %s
           WHERE name = '%s' AND interval = '%s'
           ORDER BY interval DESC, i_time DESC
@@ -296,7 +296,7 @@ class CassandraBackend(Timeseries):
     return rval
 
 class CassandraSeries(CassandraBackend, Series):
-  
+
   def __init__(self, *a, **kwargs):
     self._table = 'series'
     super(CassandraSeries,self).__init__(*a, **kwargs)
@@ -318,7 +318,7 @@ class CassandraSeries(CassandraBackend, Series):
         raise
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def _insert_data(self, connection, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
@@ -327,7 +327,7 @@ class CassandraSeries(CassandraBackend, Series):
       r_time = config['r_calc'].to_bucket(timestamp)
     else:
       r_time = -1
-   
+
     # TODO: figure out escaping rules of CQL
     cursor = connection.cursor()
     try:
@@ -347,9 +347,9 @@ class CassandraSeries(CassandraBackend, Series):
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
     rval = OrderedDict()
-    
+
     # TODO: more efficient creation of query string
-    stmt = '''SELECT i_time, r_time, value 
+    stmt = '''SELECT i_time, r_time, value
       FROM %s
       WHERE name = '%s' AND interval = '%s'
     '''%(self._table, name, interval)
@@ -372,7 +372,7 @@ class CassandraSeries(CassandraBackend, Series):
     return rval
 
 class CassandraHistogram(CassandraBackend, Histogram):
-  
+
   def __init__(self, *a, **kwargs):
     self._table = 'histogram'
     super(CassandraHistogram,self).__init__(*a, **kwargs)
@@ -395,7 +395,7 @@ class CassandraHistogram(CassandraBackend, Histogram):
         raise
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def _insert_data(self, connection, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
@@ -404,7 +404,7 @@ class CassandraHistogram(CassandraBackend, Histogram):
       r_time = config['r_calc'].to_bucket(timestamp)
     else:
       r_time = -1
-   
+
     # TODO: figure out escaping rules of CQL
     cursor = connection.cursor()
     try:
@@ -425,7 +425,7 @@ class CassandraHistogram(CassandraBackend, Histogram):
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
     rval = OrderedDict()
-    
+
     # TODO: more efficient creation of query string
     stmt = '''SELECT i_time, r_time, value, count
       FROM %s
@@ -450,7 +450,7 @@ class CassandraHistogram(CassandraBackend, Histogram):
     return rval
 
 class CassandraCount(CassandraBackend, Count):
-  
+
   def __init__(self, *a, **kwargs):
     self._table = 'count'
     super(CassandraCount,self).__init__(*a, **kwargs)
@@ -472,7 +472,7 @@ class CassandraCount(CassandraBackend, Count):
         raise
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def _insert_data(self, connection, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
@@ -481,7 +481,7 @@ class CassandraCount(CassandraBackend, Count):
       r_time = config['r_calc'].to_bucket(timestamp)
     else:
       r_time = -1
-   
+
     # TODO: figure out escaping rules of CQL
     cursor = connection.cursor()
     try:
@@ -501,7 +501,7 @@ class CassandraCount(CassandraBackend, Count):
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
     rval = OrderedDict()
-    
+
     # TODO: more efficient creation of query string
     stmt = '''SELECT i_time, r_time, count
       FROM %s
@@ -526,7 +526,7 @@ class CassandraCount(CassandraBackend, Count):
     return rval
 
 class CassandraGauge(CassandraBackend, Gauge):
-  
+
   def __init__(self, *a, **kwargs):
     self._table = 'gauge'
     super(CassandraGauge,self).__init__(*a, **kwargs)
@@ -548,7 +548,7 @@ class CassandraGauge(CassandraBackend, Gauge):
         raise
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def _insert_data(self, connection, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
@@ -557,7 +557,7 @@ class CassandraGauge(CassandraBackend, Gauge):
       r_time = config['r_calc'].to_bucket(timestamp)
     else:
       r_time = -1
-   
+
     # TODO: figure out escaping rules of CQL
     cursor = connection.cursor()
     try:
@@ -577,7 +577,7 @@ class CassandraGauge(CassandraBackend, Gauge):
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
     rval = OrderedDict()
-    
+
     # TODO: more efficient creation of query string
     stmt = '''SELECT i_time, r_time, value
       FROM %s
@@ -602,7 +602,7 @@ class CassandraGauge(CassandraBackend, Gauge):
     return rval
 
 class CassandraSet(CassandraBackend, Set):
-  
+
   def __init__(self, *a, **kwargs):
     self._table = 'sets'
     super(CassandraSet,self).__init__(*a, **kwargs)
@@ -624,7 +624,7 @@ class CassandraSet(CassandraBackend, Set):
         raise
     finally:
       cursor.close()
-  
+
   @scoped_connection
   def _insert_data(self, connection, name, value, timestamp, interval, config):
     '''Helper to insert data into sql.'''
@@ -633,7 +633,7 @@ class CassandraSet(CassandraBackend, Set):
       r_time = config['r_calc'].to_bucket(timestamp)
     else:
       r_time = -1
-   
+
     # TODO: figure out escaping rules of CQL
     cursor = connection.cursor()
     try:
@@ -649,7 +649,7 @@ class CassandraSet(CassandraBackend, Set):
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
     rval = OrderedDict()
-   
+
     # TODO: more efficient creation of query string
     stmt = '''SELECT i_time, r_time, value
       FROM %s
