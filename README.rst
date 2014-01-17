@@ -344,14 +344,16 @@ hard cap may be implemented in a future release.
 Inserting Data
 --------------
 
-There is one method to insert data, ``Timeseries.insert``.
+There are two methods to insert data, ``Timeseries.insert`` and ``Timeseries.bulk_insert``.
 
 insert
 ******
 
 * **name** The name of the statistic
-* **value** The value of the statistic (optional for count timeseries)
+* **value** The value of the statistic (optional for count timeseries), or a list of values
 * **timestamp** `(optional)` The timestamp of the statistic, defaults to ``time.time()`` if not supplied
+* **intervals** `(optional)` The number of time intervals before (<0) or after (>0) ``timestamp`` to copy the data
+* **\*\*kwargs** `(optional)` Any additional keyword arguments supported by a backend, see below
 
 For ``series`` and ``histogram`` timeseries types, ``value`` can be whatever 
 you'd like, optionally processed through the ``write_func`` method before being 
@@ -367,6 +369,87 @@ to ``1``.
 
 For the ``gauge`` type, ``value`` can be anything and it will be stored as-is.
 
+For all timeseries types, if ``value`` is one of ``(list,tuple,set)``, will 
+call ``bulk_insert``.
+
+The ``intervals`` option allows the caller to simulate the value appearing in
+time periods before or after the ``timestamp``. This is useful for creating 
+fast trending (e.g. "count over last seven days"). It is important to note 
+that, because the time periods are simulated, resolution is lost for the
+the simulated timestamps.
+
+Redis
+#####
+
+Redis supports an additional keyword argument, ``pipeline``, to give the caller
+control over batches of commands. If ``pipeline`` is supplied, the ``execute``
+method will not be called and it is up to the caller to do so.
+
+bulk_insert
+***********
+
+* **inserts** The structure of inserts (see below)
+* **intervals** `(optional)` The number of time intervals before (<0) or after (>0) ``timestamp`` to copy the data
+* **\*\*kwargs** `(optional)` Any additional keyword arguments supported by a backend, see below
+
+The ``inserts`` field must take the following form: ::
+
+    {
+      timestamp : {
+        name: [ value, ... ],
+        ...
+      },
+      ...
+    }
+
+The meaning of ``timestamp``, ``name`` and ``value`` are identical to those 
+parameters in ``insert``. The caller can insert any number of timestamps,
+statistic names and values, and the backend will optimize the insert where
+possible. See details on the different backends below. Where a backend does
+not support an optimized bulk insert, the data structure will be processed
+such that each value will be passed to ``insert``.
+
+The ``inserts`` structure can be a ``dict`` or ``OrderedDict``. If you need
+the insert order preserved, such as when inserting into a ``series`` or 
+``gauge``, you should use ``OrderedDict``.
+
+If ``timestamp`` is unknown, use ``None`` for the key and it will be set to
+the current value of ``time.time()``. Note that this may alter ordering if
+``inserts`` is an ``OrderedDict``.
+
+**NOTE** bulk inserts will increase memory usage of the client process.
+
+Redis
+#####
+
+Redis bulk inserts are implemented by using a single pipeline (without
+transactions) and committing the pipeline after all bulk inserts have been
+executed. The bulk insert also supports the ``pipeline`` argument, with the
+same rules as ``insert``.
+
+Mongo
+#####
+
+Mongo bulk inserts are implemented by joining all of the data together into
+a condensed set of queries and updates. As the configuration of a timeseries
+may result in multiple timestamps resolving to the same record (e.g. per-day
+data), this could result in significant performance gains when the timeseries
+is a ``count``, ``histogram`` or ``gauge``.
+
+SQL
+###
+
+There is no optimization for bulk inserts in SQL due to the lack of 
+native update-or-insert support. The generic SQL implementation requires an
+attempted update to be committed before kairos can determine if an insert is
+required. Future versions may have optimized implementations for specific
+SQL servers which support such a feature, at which time bulk inserts may be
+optimized for those specific backends.
+
+Cassandra
+#########
+
+The ``cql`` library has no support for transactions, grouping, etc.
 
 Meta Data
 ---------
@@ -801,7 +884,6 @@ defaulting to ``true``.
 Roadmap
 =======
 
-* Batch inserts
 * Round-robbin intervals for datastores without TTLs
 * Round-robbin databases: memcache (and compatible, e.g. ElastiCache), Riak,
   DynamoDB, SimpleDB, GDBM, Berkeley DB, and more

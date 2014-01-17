@@ -169,23 +169,14 @@ class SqlBackend(Timeseries):
           )
         ))
 
-  def _insert(self, name, value, timestamp, intervals):
+  def _insert(self, name, value, timestamp, intervals, **kwargs):
     '''
     Insert the new value.
     '''
     for interval,config in self._intervals.items():
-      self._insert_data(name, value, timestamp, interval, config)
-      steps = intervals
-      if steps<0:
-        while steps<0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps += 1
-      elif steps>0:
-        while steps>0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps -= 1
+      timestamps = self._normalize_timestamps(timestamp, intervals, config)
+      for tstamp in timestamps:
+        self._insert_data(name, value, tstamp, interval, config, **kwargs)
 
   def _get(self, name, interval, config, timestamp, **kws):
     '''
@@ -273,7 +264,7 @@ class SqlSeries(SqlBackend, Series):
     )
     self._metadata.create_all(self._client)
 
-  def _insert_data(self, name, value, timestamp, interval, config):
+  def _insert_data(self, name, value, timestamp, interval, config, **kwargs):
     '''Helper to insert data into sql.'''
     kwargs = {
       'name'        : name,
@@ -336,7 +327,7 @@ class SqlHistogram(SqlBackend, Histogram):
     )
     self._metadata.create_all(self._client)
 
-  def _insert_data(self, name, value, timestamp, interval, config):
+  def _insert_data(self, name, value, timestamp, interval, config, **kwargs):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()
     if not self._update_data(name, value, timestamp, interval, config, conn):
@@ -422,7 +413,7 @@ class SqlCount(SqlBackend, Count):
     )
     self._metadata.create_all(self._client)
 
-  def _insert_data(self, name, value, timestamp, interval, config):
+  def _insert_data(self, name, value, timestamp, interval, config, **kwargs):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()
     if not self._update_data(name, value, timestamp, interval, config, conn):
@@ -506,7 +497,7 @@ class SqlGauge(SqlBackend, Gauge):
     )
     self._metadata.create_all(self._client)
 
-  def _insert_data(self, name, value, timestamp, interval, config):
+  def _insert_data(self, name, value, timestamp, interval, config, **kwargs):
     '''Helper to insert data into sql.'''
     conn = self._client.connect()
     if not self._update_data(name, value, timestamp, interval, config, conn):

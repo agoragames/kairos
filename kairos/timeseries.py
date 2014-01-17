@@ -334,7 +334,33 @@ class Timeseries(object):
     '''
     raise NotImplementedError()
 
-  def insert(self, name, value, timestamp=None, intervals=0):
+  def bulk_insert(self, inserts, intervals=0, **kwargs):
+    '''
+    Perform a bulk insert. The format of the inserts must be:
+
+    {
+      timestamp : {
+        name: [ values ],
+        ...
+      },
+      ...
+    }
+
+    If the timestamp should be auto-generated, then "timestamp" should be None.
+
+    Backends can implement this in any number of ways, the default being to
+    perform a single insert for each value, with no specialized locking,
+    transactions or batching.
+    '''
+    if None in inserts:
+      inserts[ time.time() ] = inserts.pop(None)
+    if self._write_func:
+      for timestamp,names in inserts.iteritems():
+        for name,values in names.iteritems():
+          names[name] = [ self._write_func(v) for v in values ]
+    self._batch_insert(inserts, intervals, **kwargs)
+
+  def insert(self, name, value, timestamp=None, intervals=0, **kwargs):
     '''
     Insert a value for the timeseries "name". For each interval in the
     configuration, will insert the value into a bucket for the interval
@@ -352,6 +378,12 @@ class Timeseries(object):
     '''
     if not timestamp:
       timestamp = time.time()
+
+    if isinstance(value, (list,tuple,set)):
+      if self._write_func:
+        value = [ self._write_func(v) for v in value ]
+      return self._batch_insert({timestamp:{name:value}}, intervals, **kwargs)
+
     if self._write_func:
       value = self._write_func(value)
 
@@ -361,9 +393,34 @@ class Timeseries(object):
     # TODO: document how the data is stored.
     # TODO: better abstraction for "intervals" processing rather than in each implementation
 
-    self._insert( name, value, timestamp, intervals )
+    self._insert( name, value, timestamp, intervals, **kwargs )
 
-  def _insert(self, name, value, timestamp, intervals):
+  def _batch_insert(self, inserts, intervals, **kwargs):
+    '''
+    Support for batch insert. Default implementation is non-optimized and
+    is a simple loop over values.
+    '''
+    for timestamp,names in inserts.iteritems():
+      for name,values in names.iteritems():
+        for value in values:
+          self._insert( name, value, timestamp, intervals, **kwargs )
+
+  def _normalize_timestamps(self, timestamp, intervals, config):
+    '''
+    Helper for the subclasses to generate a list of timestamps.
+    '''
+    rval = [timestamp]
+    if intervals<0:
+      while intervals<0:
+        rval.append( config['i_calc'].normalize(timestamp, intervals) )
+        intervals += 1
+    elif intervals>0:
+      while intervals>0:
+        rval.append( config['i_calc'].normalize(timestamp, intervals) )
+        intervals -= 1
+    return rval
+
+  def _insert(self, name, value, timestamp, intervals, **kwargs):
     '''
     Support for the insert per type of series.
     '''

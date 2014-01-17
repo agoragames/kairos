@@ -88,28 +88,43 @@ class RedisBackend(Timeseries):
 
     return rval
 
-  def _insert(self, name, value, timestamp, intervals):
+  def _batch_insert(self, inserts, intervals, **kwargs):
+    '''
+    Specialized batch insert
+    '''
+    if 'pipeline' in kwargs:
+      pipe = kwargs.get('pipeline')
+      own_pipe = False
+    else:
+      pipe = self._client.pipeline(transaction=False)
+      kwargs['pipeline'] = pipe
+      own_pipe = True
+
+    for timestamp,names in inserts.iteritems():
+      for name,values in names.iteritems():
+        for value in values:
+          # TODO: support config param to flush the pipe every X inserts
+          self._insert( name, value, timestamp, intervals, **kwargs )
+
+    if own_pipe:
+      kwargs['pipeline'].execute()
+
+  def _insert(self, name, value, timestamp, intervals, **kwargs):
     '''
     Insert the value.
     '''
-    pipe = self._client.pipeline(transaction=False)
-    # TODO: apply the prefix if we're using one.
+    if 'pipeline' in kwargs:
+      pipe = kwargs.get('pipeline')
+    else:
+      pipe = self._client.pipeline(transaction=False)
 
     for interval,config in self._intervals.iteritems():
-      self._insert_data(name, value, timestamp, interval, config, pipe)
-      steps = intervals
-      if steps<0:
-        while steps<0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config, pipe)
-          steps += 1
-      elif steps>0:
-        while steps>0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config, pipe)
-          steps -= 1
+      timestamps = self._normalize_timestamps(timestamp, intervals, config)
+      for tstamp in timestamps:
+        self._insert_data(name, value, tstamp, interval, config, pipe)
 
-    pipe.execute()
+    if 'pipeline' not in kwargs:
+      pipe.execute()
 
   def _insert_data(self, name, value, timestamp, interval, config, pipe):
     '''Helper to insert data into redis'''

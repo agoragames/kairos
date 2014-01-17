@@ -65,6 +65,11 @@ class MongoBackend(Timeseries):
         self._client[interval].ensure_index(
           [('expire_from',ASCENDING)], expireAfterSeconds=config['expire'], background=True )
 
+  # A very ugly way to capture histogram updates
+  @property
+  def _single_value(self):
+    return True
+
   def _unescape(self, value):
     '''
     Recursively unescape values. Though slower, this doesn't require the user to
@@ -96,11 +101,49 @@ class MongoBackend(Timeseries):
 
     return rval
 
+  def _batch_key(self, query):
+    '''
+    Get a unique id from a query.
+    '''
+    return ''.join( ['%s%s'%(k,v) for k,v in sorted(query.items())] )
 
-  def _insert(self, name, value, timestamp, intervals):
+  def _batch_insert(self, inserts, intervals, **kwargs):
+    '''
+    Batch insert implementation.
+    '''
+    updates = {}
+    # TODO support flush interval
+    for interval,config in self._intervals.items():
+      for timestamp,names in inserts.iteritems():
+        timestamps = self._normalize_timestamps(timestamp, intervals, config)
+        for name,values in names.iteritems():
+          for value in values:
+            for tstamp in timestamps:
+              query,insert = self._insert_data(
+                name, value, tstamp, interval, config, dry_run=True)
+
+              batch_key = self._batch_key(query)
+              updates.setdefault(batch_key, {'query':query, 'interval':interval})
+              new_insert = self._batch(insert, updates[batch_key].get('insert'))
+              updates[batch_key]['insert'] = new_insert
+
+    # now that we've collected a bunch of updates, flush them out
+    for spec in updates.values():
+      self._client[ spec['interval'] ].update( 
+        spec['query'], spec['insert'], upsert=True, check_keys=False )
+
+  def _insert(self, name, value, timestamp, intervals, **kwargs):
     '''
     Insert the new value.
     '''
+    # TODO: confirm that this is in fact using the indices correctly.
+    for interval,config in self._intervals.items():
+      timestamps = self._normalize_timestamps(timestamp, intervals, config)
+      for tstamp in timestamps:
+        self._insert_data(name, value, tstamp, interval, config, **kwargs)
+
+  def _insert_data(self, name, value, timestamp, interval, config, **kwargs):
+    '''Helper to insert data into mongo.'''
     # Mongo does not allow mixing atomic modifiers and non-$set sets in the
     # same update, so the choice is to either run the first upsert on
     # {'_id':id} to ensure the record is in place followed by an atomic update
@@ -116,26 +159,10 @@ class MongoBackend(Timeseries):
     # For now, choosing to go with matching on the tuple until performance
     # testing can be done. Even then, there may be a variety of factors which
     # make the results situation-dependent.
-    # TODO: confirm that this is in fact using the indices correctly.
-    for interval,config in self._intervals.items():
-      self._insert_data(name, value, timestamp, interval, config)
-      steps = intervals
-      if steps<0:
-        while steps<0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps += 1
-      elif steps>0:
-        while steps>0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps -= 1
-
-  def _insert_data(self, name, value, timestamp, interval, config):
-    '''Helper to insert data into mongo.'''
     insert = {'name':name, 'interval':config['i_calc'].to_bucket(timestamp)}
     if not config['coarse']:
       insert['resolution'] = config['r_calc'].to_bucket(timestamp)
+    # copy the query before expire_from as that is not indexed
     query = insert.copy()
 
     if config['expire']:
@@ -154,7 +181,9 @@ class MongoBackend(Timeseries):
     self._insert_type( insert, value )
 
     # TODO: use write preference settings if we have them
-    self._client[interval].update( query, insert, upsert=True, check_keys=False )
+    if not kwargs.get('dry_run',False):
+      self._client[interval].update( query, insert, upsert=True, check_keys=False )
+    return query, insert
 
   def _get(self, name, interval, config, timestamp, **kws):
     '''
@@ -247,20 +276,50 @@ class MongoBackend(Timeseries):
 
 class MongoSeries(MongoBackend, Series):
 
+  def _batch(self, insert, existing):
+    if not existing:
+      insert['$push'] = {'value':{'$each':[ insert['$push']['value'] ]}}
+      return insert
+      
+    existing['$push']['value']['$each'].append( insert.pop('$push')['value'] )
+    return existing
+
   def _insert_type(self, spec, value):
     spec['$push'] = {'value':value}
 
 class MongoHistogram(MongoBackend, Histogram):
+  
+  def _batch(self, insert, existing):
+    if not existing:
+      return insert
+
+    for value,incr in insert['$inc'].iteritems():
+      existing['$inc'][value] = existing['$inc'].get(value,0)+incr
+    return existing
 
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value.%s'%(value): 1}
 
 class MongoCount(MongoBackend, Count):
+  
+  def _batch(self, insert, existing):
+    if not existing:
+      return insert
+
+    existing['$inc']['value'] += insert['$inc']['value']
+    return existing
 
   def _insert_type(self, spec, value):
     spec['$inc'] = {'value':value}
 
 class MongoGauge(MongoBackend, Gauge):
+
+  def _batch(self, insert, existing):
+    if not existing:
+      return insert
+
+    existing['$set']['value'] = insert['$set']['value']
+    return existing
 
   def _insert_type(self, spec, value):
     spec['$set']['value'] = value

@@ -152,7 +152,7 @@ class CassandraBackend(Timeseries):
       # do not return connection to the pool.
       pass
 
-  def _insert(self, name, value, timestamp, intervals):
+  def _insert(self, name, value, timestamp, intervals, **kwargs):
     '''
     Insert the new value.
     '''
@@ -160,18 +160,19 @@ class CassandraBackend(Timeseries):
       value = "'%s'"%(value)
 
     for interval,config in self._intervals.items():
-      self._insert_data(name, value, timestamp, interval, config)
-      steps = intervals
-      if steps<0:
-        while steps<0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps += 1
-      elif steps>0:
-        while steps>0:
-          i_timestamp = config['i_calc'].normalize(timestamp, steps)
-          self._insert_data(name, value, i_timestamp, interval, config)
-          steps -= 1
+      timestamps = self._normalize_timestamps(timestamp, intervals, config)
+      for tstamp in timestamps:
+        self._insert_data(name, value, tstamp, interval, config, **kwargs)
+
+  @scoped_connection
+  def _insert_data(self, connection, name, value, timestamp, interval, config):
+    '''Helper to insert data into cql.'''
+    cursor = connection.cursor()
+    try:
+      stmt = self._insert_stmt(name, value, timestamp, interval, config)
+      cursor.execute(stmt)
+    finally:
+      cursor.close()
 
   @scoped_connection
   def _get(self, connection, name, interval, config, timestamp, **kws):
@@ -319,9 +320,8 @@ class CassandraSeries(CassandraBackend, Series):
     finally:
       cursor.close()
 
-  @scoped_connection
-  def _insert_data(self, connection, name, value, timestamp, interval, config):
-    '''Helper to insert data into sql.'''
+  def _insert_stmt(self, name, value, timestamp, interval, config):
+    '''Helper to generate the insert statement.'''
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -329,20 +329,16 @@ class CassandraSeries(CassandraBackend, Series):
       r_time = -1
 
     # TODO: figure out escaping rules of CQL
-    cursor = connection.cursor()
-    try:
-      table_spec = self._table
-      expire = config['expire']
-      if expire:
-        table_spec += " USING TTL %s "%(expire)
-      stmt = '''UPDATE %s SET value = value + [%s]
-        WHERE name = '%s'
-        AND interval = '%s'
-        AND i_time = %s
-        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
-      cursor.execute(stmt)
-    finally:
-      cursor.close()
+    table_spec = self._table
+    expire = config['expire']
+    if expire:
+      table_spec += " USING TTL %s "%(expire)
+    stmt = '''UPDATE %s SET value = value + [%s]
+      WHERE name = '%s'
+      AND interval = '%s'
+      AND i_time = %s
+      AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+    return stmt
 
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
@@ -396,9 +392,8 @@ class CassandraHistogram(CassandraBackend, Histogram):
     finally:
       cursor.close()
 
-  @scoped_connection
-  def _insert_data(self, connection, name, value, timestamp, interval, config):
-    '''Helper to insert data into sql.'''
+  def _insert_stmt(self, name, value, timestamp, interval, config):
+    '''Helper to generate the insert statement.'''
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -406,21 +401,17 @@ class CassandraHistogram(CassandraBackend, Histogram):
       r_time = -1
 
     # TODO: figure out escaping rules of CQL
-    cursor = connection.cursor()
-    try:
-      table_spec = self._table
-      expire = config['expire']
-      if expire:
-        table_spec += " USING TTL %s "%(expire)
-      stmt = '''UPDATE %s SET count = count + 1
-        WHERE name = '%s'
-        AND interval = '%s'
-        AND i_time = %s
-        AND r_time = %s
-        AND value = %s'''%(table_spec, name, interval, i_time, r_time, value)
-      cursor.execute(stmt)
-    finally:
-      cursor.close()
+    table_spec = self._table
+    expire = config['expire']
+    if expire:
+      table_spec += " USING TTL %s "%(expire)
+    stmt = '''UPDATE %s SET count = count + 1
+      WHERE name = '%s'
+      AND interval = '%s'
+      AND i_time = %s
+      AND r_time = %s
+      AND value = %s'''%(table_spec, name, interval, i_time, r_time, value)
+    return stmt
 
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
@@ -473,9 +464,8 @@ class CassandraCount(CassandraBackend, Count):
     finally:
       cursor.close()
 
-  @scoped_connection
-  def _insert_data(self, connection, name, value, timestamp, interval, config):
-    '''Helper to insert data into sql.'''
+  def _insert_stmt(self, name, value, timestamp, interval, config):
+    '''Helper to generate the insert statement.'''
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -483,20 +473,16 @@ class CassandraCount(CassandraBackend, Count):
       r_time = -1
 
     # TODO: figure out escaping rules of CQL
-    cursor = connection.cursor()
-    try:
-      table_spec = self._table
-      expire = config['expire']
-      if expire:
-        table_spec += " USING TTL %s "%(expire)
-      stmt = '''UPDATE %s SET count = count + %s
-        WHERE name = '%s'
-        AND interval = '%s'
-        AND i_time = %s
-        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
-      cursor.execute(stmt)
-    finally:
-      cursor.close()
+    table_spec = self._table
+    expire = config['expire']
+    if expire:
+      table_spec += " USING TTL %s "%(expire)
+    stmt = '''UPDATE %s SET count = count + %s
+      WHERE name = '%s'
+      AND interval = '%s'
+      AND i_time = %s
+      AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+    return stmt
 
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
@@ -549,9 +535,8 @@ class CassandraGauge(CassandraBackend, Gauge):
     finally:
       cursor.close()
 
-  @scoped_connection
-  def _insert_data(self, connection, name, value, timestamp, interval, config):
-    '''Helper to insert data into sql.'''
+  def _insert_stmt(self, name, value, timestamp, interval, config):
+    '''Helper to generate the insert statement.'''
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -559,20 +544,16 @@ class CassandraGauge(CassandraBackend, Gauge):
       r_time = -1
 
     # TODO: figure out escaping rules of CQL
-    cursor = connection.cursor()
-    try:
-      table_spec = self._table
-      expire = config['expire']
-      if expire:
-        table_spec += " USING TTL %s "%(expire)
-      stmt = '''UPDATE %s SET value = %s
-        WHERE name = '%s'
-        AND interval = '%s'
-        AND i_time = %s
-        AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
-      cursor.execute(stmt)
-    finally:
-      cursor.close()
+    table_spec = self._table
+    expire = config['expire']
+    if expire:
+      table_spec += " USING TTL %s "%(expire)
+    stmt = '''UPDATE %s SET value = %s
+      WHERE name = '%s'
+      AND interval = '%s'
+      AND i_time = %s
+      AND r_time = %s'''%(table_spec, value, name, interval, i_time, r_time)
+    return stmt
 
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
@@ -625,9 +606,8 @@ class CassandraSet(CassandraBackend, Set):
     finally:
       cursor.close()
 
-  @scoped_connection
-  def _insert_data(self, connection, name, value, timestamp, interval, config):
-    '''Helper to insert data into sql.'''
+  def _insert_stmt(self, name, value, timestamp, interval, config):
+    '''Helper to generate the insert statement.'''
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -635,16 +615,12 @@ class CassandraSet(CassandraBackend, Set):
       r_time = -1
 
     # TODO: figure out escaping rules of CQL
-    cursor = connection.cursor()
-    try:
-      stmt = '''INSERT INTO %s (name, interval, i_time, r_time, value)
-        VALUES ('%s', '%s', %s, %s, %s)'''%(self._table, name, interval, i_time, r_time, value)
-      expire = config['expire']
-      if expire:
-        stmt += " USING TTL %s"%(expire)
-      cursor.execute(stmt)
-    finally:
-      cursor.close()
+    stmt = '''INSERT INTO %s (name, interval, i_time, r_time, value)
+      VALUES ('%s', '%s', %s, %s, %s)'''%(self._table, name, interval, i_time, r_time, value)
+    expire = config['expire']
+    if expire:
+      stmt += " USING TTL %s"%(expire)
+    return stmt
 
   @scoped_connection
   def _type_get(self, connection, name, interval, i_bucket, i_end=None):
