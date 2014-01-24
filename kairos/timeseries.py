@@ -10,6 +10,7 @@ import operator
 import sys
 import time
 import re
+import warnings
 
 if sys.version_info[:2] > (2, 6):
     from collections import OrderedDict
@@ -897,22 +898,22 @@ try:
   from .redis_backend import RedisBackend
   BACKENDS['redis'] = RedisBackend
 except ImportError as e:
-  print('Redis backend not loaded,', e)
+  warnings.warn('Redis backend not loaded, {}'.format(e))
 
 try:
   from .mongo_backend import MongoBackend
   BACKENDS['pymongo'] = MongoBackend
 except ImportError as e:
-  print('Mongo backend not loaded,', e)
+  warnings.warn('Mongo backend not loaded, {}'.format(e))
 
 try:
   from .sql_backend import SqlBackend
   BACKENDS['sqlalchemy'] = SqlBackend
 except ImportError as e:
-  print('SQL backend not loaded,', e)
+  warnings.warn('SQL backend not loaded, {}'.format(e))
 
 try:
   from .cassandra_backend import CassandraBackend
   BACKENDS['cql'] = CassandraBackend
 except ImportError as e:
-  print('Cassandra backend not loaded,', e)
+  warnings.warn('Cassandra backend not loaded, {}'.format(e))
