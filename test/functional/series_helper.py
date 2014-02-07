@@ -1,6 +1,8 @@
 from helper_helper import *
 from helper_helper import _time
 
+from collections import OrderedDict
+
 @unittest.skipUnless( os.environ.get('TEST_SERIES','true').lower()=='true', 'skipping series' )
 class SeriesHelper(Chai):
 
@@ -23,6 +25,83 @@ class SeriesHelper(Chai):
 
   def tearDown(self):
     self.series.delete_all()
+
+  def test_bulk_insert(self):
+    inserts = {
+      None      : { 'test1':[1,2,3], 'test2':[4,5,6] },
+      _time(0)  : { 'test1':[1,2,3], 'test2':[4,5,6], 'test3':[7,8,9] },
+      _time(30) : { 'test1':[1,2,3], 'test2':[4,5,6] },
+      _time(60) : { 'test1':[1,2,3], 'test3':[7,8,9] }
+    }
+    self.series.bulk_insert( inserts )
+
+    t1_i1 = self.series.get('test1', 'minute', timestamp=_time(0))
+    assert_equals( [1,2,3,1,2,3], t1_i1[_time(0)] )
+
+    t2_i1 = self.series.get('test2', 'minute', timestamp=_time(0))
+    assert_equals( [4,5,6,4,5,6], t2_i1[_time(0)] )
+    
+    t3_i1 = self.series.get('test3', 'minute', timestamp=_time(0))
+    assert_equals( [7,8,9], t3_i1[_time(0)] )
+
+    t1_i2 = self.series.get('test1', 'minute', timestamp=_time(60))
+    assert_equals( [1,2,3], t1_i2[_time(60)] )
+
+  def test_bulk_insert_intervals_after(self):
+    a,b,c,d,e,f = 10,11,12,13,14,15
+    inserts = OrderedDict( (
+      (None     , { 'test1':[1,2,3], 'test2':[4,5,6] } ),
+      (_time(0) , { 'test1':[1,2,3], 'test2':[4,5,6], 'test3':[7,8,9] } ),
+      (_time(30), { 'test1':[1,2,3], 'test2':[4,5,6] } ),
+      (_time(60), { 'test1':[a,b,c], 'test3':[d,e,f] })
+    ) )
+    self.series.bulk_insert( inserts, intervals=3 )
+
+    t1_i1 = self.series.get('test1', 'minute', timestamp=_time(0))
+    assert_equals( [1,2,3,1,2,3], t1_i1[_time(0)] )
+
+    t2_i1 = self.series.get('test2', 'minute', timestamp=_time(0))
+    assert_equals( [4,5,6,4,5,6], t2_i1[_time(0)] )
+    
+    t3_i1 = self.series.get('test3', 'minute', timestamp=_time(0))
+    assert_equals( [7,8,9], t3_i1[_time(0)] )
+
+    t1_i2 = self.series.get('test1', 'minute', timestamp=_time(60))
+    assert_equals( [1,2,3,1,2,3,a,b,c], t1_i2[_time(60)] )
+
+    t3_i3 = self.series.get('test3', 'minute', timestamp=_time(120))
+    assert_equals( [7,8,9,d,e,f], t3_i3[_time(120)] )
+
+    t3_i4 = self.series.get('test3', 'minute', timestamp=_time(180))
+    assert_equals( [7,8,9,d,e,f], t3_i4[_time(180)] )
+
+  def test_bulk_insert_intervals_before(self):
+    a,b,c,d,e,f = 10,11,12,13,14,15
+    inserts = OrderedDict( (
+      (None     , { 'test1':[1,2,3], 'test2':[4,5,6] } ),
+      (_time(0) , { 'test1':[1,2,3], 'test2':[4,5,6], 'test3':[7,8,9] } ),
+      (_time(30), { 'test1':[1,2,3], 'test2':[4,5,6] } ),
+      (_time(60), { 'test1':[a,b,c], 'test3':[d,e,f] })
+    ) )
+    self.series.bulk_insert( inserts, intervals=-3 )
+
+    t1_i1 = self.series.get('test1', 'minute', timestamp=_time(0))
+    assert_equals( [1,2,3,1,2,3,a,b,c], t1_i1[_time(0)] )
+
+    t2_i1 = self.series.get('test2', 'minute', timestamp=_time(0))
+    assert_equals( [4,5,6,4,5,6], t2_i1[_time(0)] )
+    
+    t3_i1 = self.series.get('test3', 'minute', timestamp=_time(0))
+    assert_equals( [7,8,9,d,e,f], t3_i1[_time(0)] )
+
+    t1_i2 = self.series.get('test1', 'minute', timestamp=_time(-60))
+    assert_equals( [1,2,3,1,2,3,a,b,c], t1_i2[_time(-60)] )
+
+    t3_i3 = self.series.get('test3', 'minute', timestamp=_time(-120))
+    assert_equals( [7,8,9,d,e,f], t3_i3[_time(-120)] )
+
+    t3_i4 = self.series.get('test3', 'minute', timestamp=_time(-180))
+    assert_equals( [7,8,9], t3_i4[_time(-180)] )
 
   def test_insert_multiple_intervals_after(self):
     ts1 = _time(0)
