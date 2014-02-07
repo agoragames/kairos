@@ -8,7 +8,7 @@ from pymongo import *
 from chai import Chai
 
 from . import helpers
-from .helpers import unittest, os
+from .helpers import unittest, os, Timeseries
 
 @unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
 class MongoApiTest(helpers.ApiHelper):
@@ -16,6 +16,10 @@ class MongoApiTest(helpers.ApiHelper):
   def setUp(self):
     self.client = MongoClient('localhost')
     super(MongoApiTest,self).setUp()
+
+  def test_url_parse(self):
+    assert_equals( 'MongoSeries', 
+      Timeseries('mongodb://localhost/kairos', type='series').__class__.__name__ )
 
 @unittest.skipUnless( os.environ.get('TEST_MONGO','true').lower()=='true', 'skipping mongo' )
 class MongoGregorianTest(helpers.GregorianHelper):
