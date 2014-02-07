@@ -4,6 +4,9 @@ master
 Replace print statements with warnings for unsupported backends from @akabos
 https://github.com/agoragames/kairos/pull/40
 
+Added `Timeseries.bulk_insert` with optimized Redis and Mongo implementations
+https://github.com/agoragames/kairos/pull/41
+
 0.8.1
 =====
 
