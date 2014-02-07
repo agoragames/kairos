@@ -11,6 +11,7 @@ import sys
 import time
 import re
 import warnings
+import functools
 
 if sys.version_info[:2] > (2, 6):
     from collections import OrderedDict
@@ -96,12 +97,22 @@ class RelativeTime(object):
     '''
     return self.from_bucket( self.to_bucket(timestamp, steps) )
 
-  def ttl(self, steps):
+  def ttl(self, steps, relative_time=None):
     '''
     Return the ttl given the number of steps, None if steps is not defined
-    or we're otherwise unable to calculate one.
+    or we're otherwise unable to calculate one. If relative_time is defined,
+    then return a ttl that is the number of seconds from now that the 
+    record should be expired.
     '''
     if steps:
+      if relative_time:
+        rtime = self.to_bucket(relative_time)
+        ntime = self.to_bucket(time.time())
+        # The relative time is less than now, so expire immediately
+        if rtime < ntime:
+          return 0
+        else:
+          return (rtime - ntime) * self._step
       return steps * self._step
 
     return None
@@ -190,14 +201,24 @@ class GregorianTime(object):
     # So far, the only commonality with RelativeTime
     return self.from_bucket( self.to_bucket(timestamp, steps) )
 
-  def ttl(self, steps):
+  def ttl(self, steps, relative_time=None):
     '''
     Return the ttl given the number of steps, None if steps is not defined
-    or we're otherwise unable to calculate one.
+    or we're otherwise unable to calculate one. If relative_time is defined,
+    then return a ttl that is the number of seconds from now that the 
+    record should be expired.
     '''
     if steps:
       # Approximate the ttl based on number of seconds, since it's
       # "close enough"
+      if relative_time:
+        rtime = self.to_bucket(relative_time)
+        ntime = self.to_bucket(time.time())
+        # The relative time is less than now, so expire immediately
+        if rtime < ntime:
+          return 0
+        else:
+          return (rtime - ntime) * SIMPLE_TIMES[ self._step[0] ]
       return steps * SIMPLE_TIMES[ self._step[0] ]
 
     return None
@@ -308,13 +329,11 @@ class Timeseries(object):
       else:
         resolution_calc = RelativeTime(resolution)
 
-      expire = False
-      if steps: expire = step*steps
-
       config['i_calc'] = interval_calc
       config['r_calc'] = resolution_calc
 
       config['expire'] = interval_calc.ttl( steps )
+      config['ttl'] = functools.partial( interval_calc.ttl, steps )
       config['coarse'] = (resolution==step)
 
   def list(self):

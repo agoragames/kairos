@@ -17,12 +17,14 @@ class CassandraApiTest(helpers.ApiHelper):
     self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     super(CassandraApiTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA','true').lower()=='true', 'skipping cassandra' )
-class CassandraGregorianTest(helpers.GregorianHelper):
+# Not running gregorian tests because they run in the "far future" where long
+# TTLs are not supported.
+#@unittest.skipUnless( os.environ.get('TEST_CASSANDRA','true').lower()=='true', 'skipping cassandra' )
+#class CassandraGregorianTest(helpers.GregorianHelper):
 
-  def setUp(self):
-    self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
-    super(CassandraGregorianTest,self).setUp()
+  #def setUp(self):
+    #self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
+    #super(CassandraGregorianTest,self).setUp()
 
 @unittest.skipUnless( os.environ.get('TEST_CASSANDRA','true').lower()=='true', 'skipping cassandra' )
 class CassandraSeriesTest(helpers.SeriesHelper):

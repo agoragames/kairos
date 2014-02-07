@@ -170,7 +170,8 @@ class CassandraBackend(Timeseries):
     cursor = connection.cursor()
     try:
       stmt = self._insert_stmt(name, value, timestamp, interval, config)
-      cursor.execute(stmt)
+      if stmt:
+        cursor.execute(stmt)
     finally:
       cursor.close()
 
@@ -322,6 +323,11 @@ class CassandraSeries(CassandraBackend, Series):
 
   def _insert_stmt(self, name, value, timestamp, interval, config):
     '''Helper to generate the insert statement.'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return None
+
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -330,9 +336,8 @@ class CassandraSeries(CassandraBackend, Series):
 
     # TODO: figure out escaping rules of CQL
     table_spec = self._table
-    expire = config['expire']
-    if expire:
-      table_spec += " USING TTL %s "%(expire)
+    if ttl:
+      table_spec += " USING TTL %s "%(ttl)
     stmt = '''UPDATE %s SET value = value + [%s]
       WHERE name = '%s'
       AND interval = '%s'
@@ -394,6 +399,11 @@ class CassandraHistogram(CassandraBackend, Histogram):
 
   def _insert_stmt(self, name, value, timestamp, interval, config):
     '''Helper to generate the insert statement.'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return None
+
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -402,9 +412,8 @@ class CassandraHistogram(CassandraBackend, Histogram):
 
     # TODO: figure out escaping rules of CQL
     table_spec = self._table
-    expire = config['expire']
-    if expire:
-      table_spec += " USING TTL %s "%(expire)
+    if ttl:
+      table_spec += " USING TTL %s "%(ttl)
     stmt = '''UPDATE %s SET count = count + 1
       WHERE name = '%s'
       AND interval = '%s'
@@ -466,6 +475,11 @@ class CassandraCount(CassandraBackend, Count):
 
   def _insert_stmt(self, name, value, timestamp, interval, config):
     '''Helper to generate the insert statement.'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return None
+
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -474,9 +488,8 @@ class CassandraCount(CassandraBackend, Count):
 
     # TODO: figure out escaping rules of CQL
     table_spec = self._table
-    expire = config['expire']
-    if expire:
-      table_spec += " USING TTL %s "%(expire)
+    if ttl:
+      table_spec += " USING TTL %s "%(ttl)
     stmt = '''UPDATE %s SET count = count + %s
       WHERE name = '%s'
       AND interval = '%s'
@@ -537,6 +550,11 @@ class CassandraGauge(CassandraBackend, Gauge):
 
   def _insert_stmt(self, name, value, timestamp, interval, config):
     '''Helper to generate the insert statement.'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return None
+
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -545,9 +563,8 @@ class CassandraGauge(CassandraBackend, Gauge):
 
     # TODO: figure out escaping rules of CQL
     table_spec = self._table
-    expire = config['expire']
-    if expire:
-      table_spec += " USING TTL %s "%(expire)
+    if ttl:
+      table_spec += " USING TTL %s "%(ttl)
     stmt = '''UPDATE %s SET value = %s
       WHERE name = '%s'
       AND interval = '%s'
@@ -608,6 +625,11 @@ class CassandraSet(CassandraBackend, Set):
 
   def _insert_stmt(self, name, value, timestamp, interval, config):
     '''Helper to generate the insert statement.'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return None
+
     i_time = config['i_calc'].to_bucket(timestamp)
     if not config['coarse']:
       r_time = config['r_calc'].to_bucket(timestamp)
@@ -618,8 +640,8 @@ class CassandraSet(CassandraBackend, Set):
     stmt = '''INSERT INTO %s (name, interval, i_time, r_time, value)
       VALUES ('%s', '%s', %s, %s, %s)'''%(self._table, name, interval, i_time, r_time, value)
     expire = config['expire']
-    if expire:
-      stmt += " USING TTL %s"%(expire)
+    if ttl:
+      stmt += " USING TTL %s"%(ttl)
     return stmt
 
   @scoped_connection
