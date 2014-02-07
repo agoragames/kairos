@@ -7,6 +7,16 @@ import datetime
 from kairos.timeseries import *
 from chai import Chai
 
+class RelativeTimeTest(Chai):
+
+  def test_ttl(self):
+    DAY = 60*60*24
+    rt = RelativeTime( DAY )
+    assert_equals( 3*DAY, rt.ttl( 3 ) )
+    assert_equals( 0, rt.ttl( 3, relative_time=time.time() ) )
+    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
+    assert_equals( 5*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )
+
 class GregorianTimeTest(Chai):
 
   def test_buckets(self):
@@ -26,3 +36,11 @@ class GregorianTimeTest(Chai):
     gt = GregorianTime( 'yearly' )
     buckets = gt.buckets( 0, 60*60*24*800 )
     assert_equals( buckets, [1970, 1971, 1972] )
+
+  def test_ttl(self):
+    DAY = 60*60*24
+    rt = GregorianTime( 'daily' )
+    assert_equals( 3*DAY, rt.ttl( 3 ) )
+    assert_equals( 0, rt.ttl( 3, relative_time=time.time() ) )
+    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
+    assert_equals( 5*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )

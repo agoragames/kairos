@@ -128,6 +128,11 @@ class RedisBackend(Timeseries):
 
   def _insert_data(self, name, value, timestamp, interval, config, pipe):
     '''Helper to insert data into redis'''
+    # Calculate the TTL and abort if inserting into the past
+    expire, ttl = config['expire'], config['ttl'](timestamp)
+    if expire and not ttl:
+      return
+
     i_bucket, r_bucket, i_key, r_key = self._calc_keys(config, name, timestamp)
 
     if config['coarse']:
@@ -140,11 +145,10 @@ class RedisBackend(Timeseries):
       pipe.sadd(i_key, r_bucket)
       self._type_insert(pipe, r_key, value)
 
-    expire = config['expire']
     if expire:
-      pipe.expire(i_key, expire)
+      pipe.expire(i_key, ttl)
       if not config['coarse']:
-        pipe.expire(r_key, expire)
+        pipe.expire(r_key, ttl)
 
   def delete(self, name):
     '''
