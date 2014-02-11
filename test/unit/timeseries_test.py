@@ -13,9 +13,12 @@ class RelativeTimeTest(Chai):
     DAY = 60*60*24
     rt = RelativeTime( DAY )
     assert_equals( 3*DAY, rt.ttl( 3 ) )
-    assert_equals( 0, rt.ttl( 3, relative_time=time.time() ) )
-    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
-    assert_equals( 5*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )
+    assert_equals( 3*DAY, rt.ttl( 3, relative_time=time.time() ) )
+    assert_equals( 4*DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
+    assert_equals( 8*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )
+    assert_equals( 2*DAY, rt.ttl( 3, relative_time=time.time()-DAY ) )
+    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()-2*DAY ) )
+    assert_equals( 0, rt.ttl( 3, relative_time=time.time()-3*DAY ) )
 
 class GregorianTimeTest(Chai):
 
@@ -41,6 +44,9 @@ class GregorianTimeTest(Chai):
     DAY = 60*60*24
     rt = GregorianTime( 'daily' )
     assert_equals( 3*DAY, rt.ttl( 3 ) )
-    assert_equals( 0, rt.ttl( 3, relative_time=time.time() ) )
-    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
-    assert_equals( 5*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )
+    assert_equals( 3*DAY, rt.ttl( 3, relative_time=time.time() ) )
+    assert_equals( 4*DAY, rt.ttl( 3, relative_time=time.time()+DAY ) )
+    assert_equals( 8*DAY, rt.ttl( 3, relative_time=time.time()+(5*DAY) ) )
+    assert_equals( 2*DAY, rt.ttl( 3, relative_time=time.time()-DAY ) )
+    assert_equals( DAY, rt.ttl( 3, relative_time=time.time()-2*DAY ) )
+    assert_equals( 0, rt.ttl( 3, relative_time=time.time()-3*DAY ) )
