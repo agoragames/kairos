@@ -108,11 +108,12 @@ class RelativeTime(object):
       if relative_time:
         rtime = self.to_bucket(relative_time)
         ntime = self.to_bucket(time.time())
-        # The relative time is less than now, so expire immediately
-        if rtime < ntime:
+        # The relative time is beyond our TTL cutoff
+        if (ntime - rtime) > steps:
           return 0
+        # The relative time is in "recent" past or future
         else:
-          return (rtime - ntime) * self._step
+          return (steps + rtime - ntime) * self._step
       return steps * self._step
 
     return None
@@ -214,11 +215,12 @@ class GregorianTime(object):
       if relative_time:
         rtime = self.to_bucket(relative_time)
         ntime = self.to_bucket(time.time())
-        # The relative time is less than now, so expire immediately
-        if rtime < ntime:
+        # The relative time is beyond our TTL cutoff
+        if (ntime - rtime) > steps:
           return 0
+        # The relative time is in "recent" past or future
         else:
-          return (rtime - ntime) * SIMPLE_TIMES[ self._step[0] ]
+          return (steps + rtime - ntime) * SIMPLE_TIMES[ self._step[0] ]
       return steps * SIMPLE_TIMES[ self._step[0] ]
 
     return None
