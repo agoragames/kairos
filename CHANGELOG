@@ -1,3 +1,9 @@
+0.9.1
+=====
+
+Fixed calculation of relative TTLs
+https://github.com/agoragames/kairos/pull/44
+
 0.9.0
 =====
 
