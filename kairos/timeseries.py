@@ -225,11 +225,27 @@ class GregorianTime(object):
 
     return None
 
+class TimeseriesMeta(type):
+  '''
+  Meta class for URL parsing
+  '''
+  def __call__(cls, client, **kwargs):
+    if isinstance(client, (str,unicode)):
+      for backend in BACKENDS.values():
+        handle = backend.url_parse(client, **kwargs.pop('client_config',{}))
+        if handle:
+          client = handle
+          break
+    if isinstance(client, (str,unicode)):
+      raise ImportError("Unsupported or unknown client type for %s", client)
+    return type.__call__(cls, client, **kwargs)
+
 class Timeseries(object):
   '''
   Base class of all time series. Also acts as a factory to return the correct
   subclass if "type=" keyword argument supplied.
   '''
+  __metaclass__ = TimeseriesMeta
 
   def __new__(cls, client, **kwargs):
     if cls==Timeseries:
@@ -238,8 +254,8 @@ class Timeseries(object):
       backend = BACKENDS.get( client_module )
       if backend:
         return backend( client, **kwargs )
-      else:
-        raise ImportError("Unsupported or unknown client type %s", client_module)
+
+      raise ImportError("Unsupported or unknown client type %s", client_module)
     return object.__new__(cls, client, **kwargs)
 
   def __init__(self, client, **kwargs):

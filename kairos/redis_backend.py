@@ -10,6 +10,8 @@ import operator
 import sys
 import time
 import re
+from urlparse import *
+from redis import Redis
 
 class RedisBackend(Timeseries):
   '''
@@ -29,6 +31,7 @@ class RedisBackend(Timeseries):
         return RedisGauge.__new__(RedisGauge, *args, **kwargs)
       elif ttype=='set':
         return RedisSet.__new__(RedisSet, *args, **kwargs)
+      raise NotImplementedError("No implementation for %s types"%(ttype))
     return Timeseries.__new__(cls, *args, **kwargs)
 
   def __init__(self, client, **kwargs):
@@ -38,6 +41,12 @@ class RedisBackend(Timeseries):
       self._prefix += ':'
 
     super(RedisBackend,self).__init__( client, **kwargs )
+
+  @classmethod
+  def url_parse(self, url, **kwargs):
+    location = urlparse(url)
+    if location.scheme == 'redis':
+      return Redis.from_url( url, **kwargs )
 
   def _calc_keys(self, config, name, timestamp):
     '''

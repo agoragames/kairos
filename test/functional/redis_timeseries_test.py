@@ -8,7 +8,7 @@ import redis
 from chai import Chai
 
 from . import helpers
-from .helpers import unittest, os
+from .helpers import unittest, os, Timeseries
 
 @unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
 class RedisApiTest(helpers.ApiHelper):
@@ -16,6 +16,10 @@ class RedisApiTest(helpers.ApiHelper):
   def setUp(self):
     self.client = redis.Redis('localhost')
     super(RedisApiTest,self).setUp()
+
+  def test_url_parse(self):
+    assert_equals( 'RedisSeries', 
+      Timeseries('redis://', type='series').__class__.__name__ )
 
 @unittest.skipUnless( os.environ.get('TEST_REDIS','true').lower()=='true', 'skipping redis' )
 class RedisGregorianTest(helpers.GregorianHelper):

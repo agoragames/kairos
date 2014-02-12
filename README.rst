@@ -79,9 +79,9 @@ for all combinations of data type and storage engine.
 Constructor
 -----------
 
-The first argument is a handle to a supported storage engine, and the rest of
-the keyword arguments configure the timeseries. The keyword arguments 
-supported by all storage engines are:
+The first argument is a handle to a supported storage engine or a URL (see 
+below), and the rest of the keyword arguments configure the timeseries. The 
+keyword arguments supported by all storage engines are:
 
 type
   Optional, defaults to "series". 
@@ -144,10 +144,14 @@ Storage Engines
 ---------------
 
 Each of the supported storage engines also supports a set of keyword arguments
-to configure their behavior.
+to configure their behavior. When intializing with a URL, the keyword argument
+``client_config`` can optionally be a dictionary which will be passed as 
+keyword arguments to the constructor for the client associated with the URL.
+If kairos implements any custom keyword arguments from ``client_config`` those
+are documented below.
 
-Redis
-*****
+Redis (redis://)
+****************
 
 An example timeseries stored in Redis: ::
 
@@ -172,8 +176,15 @@ Additional keyword arguments are: ::
     Optional, is a prefix for all keys in this timeseries. If 
     supplied and it doesn't end with ":", it will be automatically appended.
 
-Mongo
-*****
+Supported URL `formats <https://github.com/andymccurdy/redis-py/blob/master/redis/client.py#L332>`_: ::
+
+  redis://localhost
+  redis://localhost/3
+
+All `supported <https://github.com/andymccurdy/redis-py/blob/master/redis/client.py#L361>`_ configuration options can be passed in ``client_config``.
+
+Mongo (mongodb://)
+******************
 
 An example timeseries stored in Mongo: ::
 
@@ -198,8 +209,21 @@ Additional keyword arguments are: ::
     Optional, defines the character used to escape periods. Defaults to the
     unicode character "U+FFFF". 
 
-SQL
-***
+Supported URL `formats <http://docs.mongodb.org/manual/reference/connection-string/>`_: ::
+
+  mongodb://localhost
+  mongodb://localhost:27018/timeseries
+  mongodb://guest:host@localhost/authed_db
+
+
+All `supported <http://api.mongodb.org/python/current/api/pymongo/mongo_client.html>`_ configuration arguments can be passed in ``client_config``, in addition to: ::
+
+  database
+    The name of the database to use. Defaults to 'kairos'. Required if using
+    an auth database. Overrides any database provided in the URL.
+
+SQL (*sql*://)
+**************
 
 An example timeseries stored in a SQLite memory store: ::
 
@@ -265,8 +289,17 @@ Additional keyword arguments are: ::
     'unicode'
     <type 'unicode'>
 
-Cassandra
-*********
+Supported URL `formats <http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html#database-urls>`_ are many and varied. A few examples: ::
+
+  sqlite:///:memory:
+  postgresql://scott:tiger@localhost/mydatabase
+  mysql+mysqldb://scott:tiger@localhost/foo
+  oracle://scott:tiger@127.0.0.1:1521/sidname
+
+All `supported <http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html#sqlalchemy.create_engine>`_ constructor arguments can be used in ``client_config``.
+
+Cassandra (cassandra://, cql://)
+********************************
 
 An example timeseries stored in Cassandra: ::
 
@@ -320,6 +353,14 @@ Additional keyword arguments are: ::
     <type 'str'>
     <type 'int'>
     inet
+
+Supported URL formats are: ::
+  
+  cql://
+  cassandra://localhost:9160
+  cassandra://localhost/database
+
+There are no special arguments supported in ``client_config``.
 
 kairos requires `cql <https://pypi.python.org/pypi/cql>`_ as it supports
 `CQL3 <https://cassandra.apache.org/doc/cql3/CQL.html>`_ and gevent. This 

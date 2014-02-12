@@ -14,6 +14,7 @@ from datetime import time as time_type
 from decimal import Decimal
 from Queue import Queue, Empty, Full
 import re
+from urlparse import *
 
 # Test python3 compatibility
 try:
@@ -90,7 +91,26 @@ class CassandraBackend(Timeseries):
         return CassandraGauge.__new__(CassandraGauge, *args, **kwargs)
       elif ttype=='set':
         return CassandraSet.__new__(CassandraSet, *args, **kwargs)
+      raise NotImplementedError("No implementation for %s types"%(ttype))
     return Timeseries.__new__(cls, *args, **kwargs)
+
+  @classmethod
+  def url_parse(self, url, **kwargs):
+    location = urlparse(url)
+    if location.scheme in ('cassandra','cql'):
+      host = location.netloc or "localhost:9160"
+      if re.search(":[0-9]+$", host):
+        ip,port = host.split(':')
+      else:
+        ip = host
+        port = 9160
+
+      keyspace = location.path[1:] or kwargs.get('database', 'kairos')
+      if '?' in keyspace:
+        keyspace,params = keyspace.split('?')
+
+      return cql.connect(ip, int(port), keyspace, cql_version='3.0.0', **kwargs)
+
 
   def __init__(self, client, **kwargs):
     '''

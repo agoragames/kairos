@@ -7,6 +7,11 @@ import datetime
 from kairos.timeseries import *
 from chai import Chai
 
+class UrlTest(Chai):
+  def test_bad_url(self):
+    with assert_raises(ImportError):
+      Timeseries("noop://foo/bar")
+
 class RelativeTimeTest(Chai):
 
   def test_ttl(self):

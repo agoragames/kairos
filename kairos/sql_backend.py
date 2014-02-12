@@ -7,13 +7,14 @@ from .exceptions import *
 from .timeseries import *
 
 from sqlalchemy.types import TypeEngine
-from sqlalchemy import Table, Column, BigInteger, Integer, String, Unicode, Text, LargeBinary, Float, Boolean, Time, Date, DateTime, Numeric, MetaData, UniqueConstraint
+from sqlalchemy import Table, Column, BigInteger, Integer, String, Unicode, Text, LargeBinary, Float, Boolean, Time, Date, DateTime, Numeric, MetaData, UniqueConstraint, create_engine
 from sqlalchemy.sql import select, update, insert, distinct, asc, desc, and_, or_, not_
 
 import time
 from datetime import date, datetime
 from datetime import time as time_type
 from decimal import Decimal
+from urlparse import *
 
 # Test python3 compatibility
 try:
@@ -76,7 +77,14 @@ class SqlBackend(Timeseries):
         return SqlCount.__new__(SqlCount, *args, **kwargs)
       elif ttype=='gauge':
         return SqlGauge.__new__(SqlGauge, *args, **kwargs)
+      raise NotImplementedError("No implementation for %s types"%(ttype))
     return Timeseries.__new__(cls, *args, **kwargs)
+
+  @classmethod
+  def url_parse(self, url, **kwargs):
+    location = urlparse(url)
+    if 'sql' in location.scheme:
+      return create_engine( url, **kwargs )
 
   def __init__(self, client, **kwargs):
     '''

@@ -8,7 +8,7 @@ import os
 from sqlalchemy import create_engine
 
 from . import helpers
-from .helpers import unittest, os
+from .helpers import unittest, os, Timeseries
 
 SQL_HOST = os.environ.get('SQL_HOST', 'sqlite:///:memory:')
 
@@ -18,6 +18,10 @@ class SqlApiTest(helpers.ApiHelper):
   def setUp(self):
     self.client = create_engine(SQL_HOST, echo=False)
     super(SqlApiTest,self).setUp()
+
+  def test_url_parse(self):
+    assert_equals( 'SqlSeries', 
+      Timeseries('sqlite:///:memory:', type='series').__class__.__name__ )
 
   def test_expire(self):
     cur_time = time.time()
