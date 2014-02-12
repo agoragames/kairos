@@ -1,3 +1,9 @@
+0.9.2
+=====
+
+Implemented support for creating a Timeseries using a URL
+https://github.com/agoragames/kairos/pull/45
+
 0.9.1
 =====
 
