@@ -360,7 +360,7 @@ Supported URL formats are: ::
   cassandra://localhost:9160
   cassandra://localhost/database
 
-There are no special arguments supported in ``client_config``.
+All `supported <https://code.google.com/a/apache-extras.org/p/cassandra-dbapi2/source/browse/cql/connection.py>`_ constructor arguments can be used in ``client_config``.
 
 kairos requires `cql <https://pypi.python.org/pypi/cql>`_ as it supports
 `CQL3 <https://cassandra.apache.org/doc/cql3/CQL.html>`_ and gevent. This 
