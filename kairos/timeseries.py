@@ -247,12 +247,18 @@ class GregorianTime(object):
       if relative_time:
         rtime = self.to_bucket(relative_time)
         ntime = self.to_bucket(time.time())
+
+        # Convert to number of days
+        day_diff = (self.from_bucket(ntime, native=True) - self.from_bucket(rtime, native=True)).days
+        # Convert steps to number of days as well
+        step_diff = (steps*SIMPLE_TIMES[self._step[0]]) / SIMPLE_TIMES['d']
+
         # The relative time is beyond our TTL cutoff
-        if (ntime - rtime) > steps:
+        if day_diff > step_diff:
           return 0
         # The relative time is in "recent" past or future
         else:
-          return (steps + rtime - ntime) * SIMPLE_TIMES[ self._step[0] ]
+          return (step_diff - day_diff) * SIMPLE_TIMES['d']
       return steps * SIMPLE_TIMES[ self._step[0] ]
 
     return None
