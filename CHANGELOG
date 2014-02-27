@@ -1,5 +1,5 @@
-rate
-====
+0.10.0
+======
 
 Added parameter "duration" to custom transforms to facilitate rate
 calculations. This is a breaking change. Added more documentation on
