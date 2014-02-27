@@ -704,9 +704,9 @@ class Timeseries(object):
     Process transforms on the data.
     '''
     if isinstance(transform, (list,tuple,set)):
-      return { t : self._transform(data,t) for t in transform }
+      return dict((t, self._transform(data,t)) for t in transform)
     elif isinstance(transform, dict):
-      return { tn : self._transform(data,tf) for tn,tf in transform.items() }
+      return dict((tn, self._transform(data,tf)) for tn,tf in transform.items())
     return self._transform(data, transform)
 
   def _transform(self, data, transform):
@@ -992,22 +992,22 @@ try:
   from .redis_backend import RedisBackend
   BACKENDS['redis'] = RedisBackend
 except ImportError as e:
-  warnings.warn('Redis backend not loaded, {}'.format(e))
+  warnings.warn('Redis backend not loaded, {0}'.format(e))
 
 try:
   from .mongo_backend import MongoBackend
   BACKENDS['pymongo'] = MongoBackend
 except ImportError as e:
-  warnings.warn('Mongo backend not loaded, {}'.format(e))
+  warnings.warn('Mongo backend not loaded, {0}'.format(e))
 
 try:
   from .sql_backend import SqlBackend
   BACKENDS['sqlalchemy'] = SqlBackend
 except ImportError as e:
-  warnings.warn('SQL backend not loaded, {}'.format(e))
+  warnings.warn('SQL backend not loaded, {0}'.format(e))
 
 try:
   from .cassandra_backend import CassandraBackend
   BACKENDS['cql'] = CassandraBackend
 except ImportError as e:
-  warnings.warn('Cassandra backend not loaded, {}'.format(e))
+  warnings.warn('Cassandra backend not loaded, {0}'.format(e))
