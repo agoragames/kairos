@@ -177,10 +177,12 @@ Additional keyword arguments are: ::
     Optional, is a prefix for all keys in this timeseries. If 
     supplied and it doesn't end with ":", it will be automatically appended.
 
-Supported URL `formats <https://github.com/andymccurdy/redis-py/blob/master/redis/client.py#L332>`_: ::
+Supported URL `formats`__: ::
 
   redis://localhost
   redis://localhost/3
+
+__ https://github.com/andymccurdy/redis-py/blob/master/redis/client.py#L332
 
 All `supported <https://github.com/andymccurdy/redis-py/blob/master/redis/client.py#L361>`_ configuration options can be passed in ``client_config``.
 
@@ -210,21 +212,24 @@ Additional keyword arguments are: ::
     Optional, defines the character used to escape periods. Defaults to the
     unicode character "U+FFFF". 
 
-Supported URL `formats <http://docs.mongodb.org/manual/reference/connection-string/>`_: ::
+Supported URL `formats`__: ::
 
   mongodb://localhost
   mongodb://localhost:27018/timeseries
   mongodb://guest:host@localhost/authed_db
 
+__ http://docs.mongodb.org/manual/reference/connection-string/
 
-All `supported <http://api.mongodb.org/python/current/api/pymongo/mongo_client.html>`_ configuration arguments can be passed in ``client_config``, in addition to: ::
+All `supported`__ configuration arguments can be passed in ``client_config``, in addition to: ::
 
   database
     The name of the database to use. Defaults to 'kairos'. Required if using
     an auth database. Overrides any database provided in the URL.
 
-SQL (*sql*://)
-**************
+__ http://api.mongodb.org/python/current/api/pymongo/mongo_client.html
+
+SQL (\*sql\*://)
+****************
 
 An example timeseries stored in a SQLite memory store: ::
 
@@ -297,7 +302,9 @@ Supported URL `formats <http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html#
   mysql+mysqldb://scott:tiger@localhost/foo
   oracle://scott:tiger@127.0.0.1:1521/sidname
 
-All `supported <http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html#sqlalchemy.create_engine>`_ constructor arguments can be used in ``client_config``.
+All `supported`__ constructor arguments can be used in ``client_config``.
+
+__  http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html#sqlalchemy.create_engine
 
 Cassandra (cassandra://, cql://)
 ********************************
@@ -361,7 +368,9 @@ Supported URL formats are: ::
   cassandra://localhost:9160
   cassandra://localhost/database
 
-All `supported <https://code.google.com/a/apache-extras.org/p/cassandra-dbapi2/source/browse/cql/connection.py>`_ constructor arguments can be used in ``client_config``.
+All `supported`__ constructor arguments can be used in ``client_config``.
+
+__  https://code.google.com/a/apache-extras.org/p/cassandra-dbapi2/source/browse/cql/connection.py
 
 kairos requires `cql <https://pypi.python.org/pypi/cql>`_ as it supports
 `CQL3 <https://cassandra.apache.org/doc/cql3/CQL.html>`_ and gevent. This 
