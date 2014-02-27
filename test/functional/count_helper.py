@@ -128,6 +128,9 @@ class CountHelper(Chai):
     assert_equals( 60, len(interval) )
     assert_equals( 60, interval[_time(60)] )
     
+    interval = self.series.get( 'test', 'hour', timestamp=_time(100), transform='rate' )
+    assert_equals( 1.0, interval[_time(60)] )
+
     interval = self.series.get( 'test', 'hour', timestamp=_time(100), condensed=True )
     assert_equals( 1, len(interval) )
     assert_equals( 3599, interval[_time(0)] )
@@ -135,6 +138,10 @@ class CountHelper(Chai):
     interval = self.series.get( 'test', 'hour', timestamp=_time(4000), condensed=True )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, interval[_time(3600)] )
+
+    interval = self.series.get( 'test', 'hour', timestamp=_time(4000), condensed=True, transform='rate' )
+    assert_equals( 1, len(interval) )
+    assert_equals( 1.0, interval[_time(3600)] )
 
   def test_get_joined(self):
     # put some data in the first minutes of each hour for test1, and then for
@@ -158,15 +165,21 @@ class CountHelper(Chai):
     assert_equals( [_time(60)], interval.keys() )
     assert_equals( 2*sum(range(60,120)), interval[_time(60)] )
 
+    interval = self.series.get( ['test1','test2'], 'minute', timestamp=_time(100), transform='rate' )
+    assert_equals( (2*sum(range(60,120)))/60.0, interval[_time(60)] )
+
     # interval with 1 series worth of data
     interval = self.series.get( ['test1','test2'], 'minute', timestamp=_time(122) )
     assert_equals( [_time(120)], interval.keys() )
     assert_equals( sum(range(120,180)), interval[_time(120)] )
+    interval = self.series.get( ['test1','test2'], 'minute', timestamp=_time(122), transform='rate' )
+    assert_equals( (sum(range(120,180)))/60.0, interval[_time(120)] )
 
     # no matching interval, returns no with empty value list
     interval = self.series.get( ['test1','test2'], 'minute' )
     assert_equals( 1, len(interval) )
     assert_equals( 0, interval.values()[0] )
+    interval = self.series.get( ['test1','test2'], 'minute', transform='rate' )
 
     ###
     ### with resolution, optionally condensed
@@ -181,6 +194,9 @@ class CountHelper(Chai):
     interval = self.series.get( ['test1','test2'], 'hour', timestamp=_time(100), condensed=True )
     assert_equals( [_time(0)], interval.keys() )
     assert_equals( 2*sum(range(1,120)) + sum(range(120,240)), interval[_time(0)] )
+
+    interval = self.series.get( ['test1','test2'], 'hour', timestamp=_time(100), condensed=True, transform='rate' )
+    assert_equals( (2*sum(range(1,120)) + sum(range(120,240)))/3600.0, interval[_time(0)] )
 
   def test_series(self):
     # 2 hours worth of data
@@ -198,6 +214,9 @@ class CountHelper(Chai):
     interval = self.series.series( 'test', 'minute', steps=2, end=_time(250) )
     assert_equals( map(_time, [180,240]), interval.keys() )
     assert_equals( 60, interval[_time(240)] )
+
+    interval = self.series.series( 'test', 'minute', steps=2, end=_time(250), transform='rate' )
+    assert_equals( 1.0, interval[_time(240)] )
 
     # with collapse
     interval = self.series.series( 'test', 'minute', end=_time(250), collapse=True )
@@ -217,6 +236,8 @@ class CountHelper(Chai):
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200) )
     assert_equals( 1, len(interval) )
     assert_equals( 3600, interval[_time(3600)] )
+    interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), transform='rate' )
+    assert_equals( 1.0, interval[_time(3600)] )
 
     interval = self.series.series( 'test', 'hour', condensed=True, end=_time(4200), steps=2 )
     assert_equals( map(_time, [0,3600]), interval.keys() )
@@ -252,6 +273,8 @@ class CountHelper(Chai):
     assert_equals( sum(range(120,180)), interval[_time(120)] )
     assert_equals( sum(range(180,240)), interval[_time(180)] )
     assert_equals( 0, interval[_time(240)] )
+    interval = self.series.series( ['test1','test2'], 'minute', end=_time(250), transform='rate' )
+    assert_equals( sum(range(120,180))/60.0, interval[_time(120)] )
 
     # no matching interval, returns no with empty value list
     interval = self.series.series( ['test1','test2'], 'minute', start=time.time(), steps=2 )
@@ -274,6 +297,9 @@ class CountHelper(Chai):
     assert_equals( 2*sum(range(60,120)), interval[_time(0)][_time(60)] )
     assert_equals( sum(range(120,180)), interval[_time(0)][_time(120)] )
     assert_equals( sum(range(180,240)), interval[_time(0)][_time(180)] )
+
+    interval = self.series.series( ['test1','test2'], 'hour', end=_time(250), transform='rate' )
+    assert_equals( sum(range(180,240)) / 60.0, interval[_time(0)][_time(180)] )
 
     # condensed
     interval = self.series.series( ['test1','test2'], 'hour', end=_time(250), condensed=True )

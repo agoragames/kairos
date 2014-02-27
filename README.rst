@@ -138,7 +138,8 @@ intervals
   in terms of seconds and may not match the varying month lengths, leap years, 
   etc. Gregorian dates are translated into ``strptime``- and ``strftime``-compatible
   keys (as integers) and so may be easier to use in raw form or with any 
-  external tools.
+  external tools. The ``duration`` parameter to transforms run on gregorian
+  series will be seconds in whole number of days (where a day is 86400 seconds).
 
 Storage Engines
 ---------------
@@ -536,7 +537,7 @@ Supports the following parameters. All optional parameters are keyword arguments
 * **interval** The named interval to read from
 * **timestamp** `(optional)` The timestamp to read, defaults to ``time.time()``
 * **condensed** `(optional)` **DEPRECATED** Use ``condense`` instead. Support for this will be removed entirely in a future release.
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set. See `Customized Reads`_ for more on custom transforms.
 * **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
 * **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
 * **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
@@ -561,7 +562,7 @@ Almost identical to ``get``, supports the following parameters. All optional par
 * **end** `(optional)` The timestamp which should be in the last interval of the returned data. 
 * **steps** `(optional)` The number of steps in the interval to read, defaults to either ``steps`` in the configuration or 1. Ignored if both ``start`` and ``end`` are defined. If either ``start`` or ``end`` are defined, ``steps`` is inclusive of whatever interval that timestamp falls into.
 * **condensed** `(optional)` **DEPRECATED** Use ``condense`` instead. Support for this will be removed entirely in a future release.
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts a list of datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set. See `Customized Reads`_ for more on custom transforms.
 * **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
 * **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
 * **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
@@ -596,7 +597,7 @@ Almost identical to ``get`` except it does not accept a ``timestamp`` argument.
 
 * **name** The name of the statistic, or a list of names whose data will be joined together.
 * **interval** The named interval to read from
-* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set.
+* **transform** `(optional)` Optionally process each row of data. Supports ``[mean, count, min, max, sum]``, or any callable that accepts datapoints according to the type of series (e.g histograms are dictionaries, counts are integers, etc). Transforms are called after ``read_func`` has cast the data type and after resolution data is optionally condensed. If ``transform`` is one of ``(list,tuple,set)``, will load the data once and run all the transforms on that data set. If ``transform`` is a ``dict`` of the form ``{ transform_name : transform_func }``, will run all of the transform functions on the data set. See `Customized Reads`_ for more on custom transforms.
 * **fetch** `(optional)` Function to use instead of the built-in implementations for fetching data. See `Customized Reads`_.
 * **process_row** `(optional)` Can be a callable to implement `Customized Reads`_.
 * **condense** `(optional)` If using resolutions, ``True`` will collapse the resolution data into a single row. Can be a callable to implement `Customized Reads`_.
@@ -724,6 +725,17 @@ transform
 As noted previously, ``transform`` can be any callable, list of names or callables,
 or a named map of transform names or callables. The transforms will be processed 
 after all previous native or custom read functions, including ``collapse``.
+
+Transforms must accept 2 parameters, the data and the time interval in seconds
+over which that data was captured. The ``data`` parameter will be of a type
+corresponding to the timeseries type, or whatever was generated by a custom
+``fetch``. For example: ::
+
+    def custom_rate_for_counts(data, duration):
+      return float(data) / float(duration)
+
+For gregorian timeseries, ``duration`` will seconds in terms of the whole
+number of days over which the data was captured, where a day is 86400 seconds.
 
 Redis
 *****
