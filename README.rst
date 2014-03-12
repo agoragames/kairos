@@ -28,10 +28,11 @@ Kairos provides a consistent API for a variety of timeseries types and the
 storage engines they're implemented in. Each timestamp is resolved to a 
 consistent bucket identifier ("interval") based on the number of whole seconds
 since epoch, or a number corresponding to the Gregorian date associated with
-the relative intervals  ``[daily, weekly, monthly, yearly]`` (e.g ``19990105``.
+the relative intervals  ``[daily, weekly, monthly, yearly]`` (e.g ``19991231``).
 Within that, data can optionally be stored at resolutions (e.g. "daily, 
 in 1 hour increments"). Multiple intervals can be tracked within a timeseries,
-each with its own resolution and optional TTL.
+each with its own resolution and optional TTL (e.g. 60 days of daily data,
+lifetime monthly data).
 
 In data stores that support it, TTLs can be set for automatically deleting 
 data after a set number of intervals; other data stores expose an ``expire()``
@@ -53,11 +54,11 @@ histogram
   A hash of unique values to the number of its occurrences within an interval.
   Uses data store dictionaries where supported, else it will be separate 
   records for each unique value and timestamp. Queries will return dictionary
-  objects.
+  objects. Built-in transforms assume that keys are real numbers.
 
 count
-  A simple counter will be maintained for each interval. Queries will return
-  an integer.
+  A simple counter will be maintained for each interval, starting at 0 for
+  an interval. Queries will return an integer.
 
 gauge
   Stores the last-written value for each interval. Queries will return whatever
@@ -84,7 +85,8 @@ below), and the rest of the keyword arguments configure the timeseries. The
 keyword arguments supported by all storage engines are:
 
 type
-  Optional, defaults to "series". 
+  Required, defines the type of the timeseries. Raises a ``NotImplementedError``
+  if the backend does not support the type.
 
 read_func
   Optional, is a function applied to all values read back from the
