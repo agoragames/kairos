@@ -1,7 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
-@unittest.skipUnless( os.environ.get('TEST_API','true').lower()=='true', 'skipping api' )
+@unittest.skipUnless( os.environ.get('TEST_API',TEST_DEFAULT).lower()=='true', 'skipping api' )
 class ApiHelper(Chai):
 
   def setUp(self):
@@ -25,6 +25,7 @@ class ApiHelper(Chai):
     self.series.delete_all()
 
   def tearDown(self):
+    super(ApiHelper,self).tearDown()
     self.series.delete_all()
 
   def test_list(self):
@@ -79,3 +80,29 @@ class ApiHelper(Chai):
     assert_equals( (_time(0),[32,42,52]), res[0] )
 
     self.series.delete('test')
+
+  def test_first(self):
+    # no data yet
+    with assert_raises( UnknownInterval ):
+      self.series.first('test', 'minute')
+
+    self.series.insert( 'test', 32, timestamp=_time(0) )
+    self.series.insert( 'test', 42, timestamp=_time(60) )
+    self.series.insert( 'test', 52, timestamp=_time(600) )
+
+    assert_equals( {_time(0):[32]}, self.series.first('test', 'minute') )
+    with assert_raises( UnknownInterval ):
+      self.series.first('test', 'quarterly')
+
+  def test_last(self):
+    # no data yet
+    with assert_raises( UnknownInterval ):
+      self.series.last('test', 'minute')
+
+    self.series.insert( 'test', 32, timestamp=_time(0) )
+    self.series.insert( 'test', 42, timestamp=_time(60) )
+    self.series.insert( 'test', 52, timestamp=_time(600) )
+
+    assert_equals( {_time(600):[52]}, self.series.last('test', 'minute') )
+    with assert_raises( UnknownInterval ):
+      self.series.last('test', 'quarterly')

@@ -1,7 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
-@unittest.skipUnless( os.environ.get('TEST_GAUGE','true').lower()=='true', 'skipping gauges' )
+@unittest.skipUnless( os.environ.get('TEST_GAUGE',TEST_DEFAULT).lower()=='true', 'skipping gauges' )
 class GaugeHelper(Chai):
 
   def setUp(self):

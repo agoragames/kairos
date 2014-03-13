@@ -931,7 +931,7 @@ Use `nose <https://github.com/nose-devs/nose/>`_ to run the test suite. ::
   $ nosetests
 
 The test suite can be controlled through several environment variables, all
-defaulting to ``true``. 
+defaulting to ``true``, unless **TEST_ALL** has been set to ``false``.
 
 * **TEST_REDIS** *true*
 * **TEST_MONGO** *true*

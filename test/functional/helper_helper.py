@@ -11,3 +11,4 @@ from kairos.timeseries import *
 def _time(t):
   return (500000*3600)+t
 
+TEST_DEFAULT = os.environ.get('TEST_ALL','true')

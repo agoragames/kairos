@@ -400,7 +400,8 @@ class Timeseries(object):
 
   def properties(self, name):
     '''
-    Get the properties of a stat.
+    Get the properties of a stat. Returns a dictionary with the following:
+    { interval : { 'first' : timestamp, 'last' : timestamp } }
     '''
     raise NotImplementedError()
 
@@ -615,6 +616,28 @@ class Timeseries(object):
     Support for the insert per type of series.
     '''
     raise NotImplementedError()
+
+  def first(self, name, interval, **kwargs):
+    '''
+    Identical to get(), except that the timestamp of the data will be based
+    on the first known timestamp returned in properties().
+    '''
+    props = self.properties(name)
+    if interval not in props:
+      raise UnknownInterval(interval)
+    kwargs['timestamp'] = props[interval]['first']
+    return self.get(name, interval, **kwargs)
+
+  def last(self, name, interval, **kwargs):
+    '''
+    Identical to get(), except that the timestamp of the data will be based
+    on the last known timestamp return in properties().
+    '''
+    props = self.properties(name)
+    if interval not in props:
+      raise UnknownInterval(interval)
+    kwargs['timestamp'] = props[interval]['last']
+    return self.get(name, interval, **kwargs)
 
   def series(self, name, interval, **kwargs):
     '''

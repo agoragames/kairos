@@ -3,7 +3,7 @@ from helper_helper import _time
 
 from collections import OrderedDict
 
-@unittest.skipUnless( os.environ.get('TEST_SERIES','true').lower()=='true', 'skipping series' )
+@unittest.skipUnless( os.environ.get('TEST_SERIES',TEST_DEFAULT).lower()=='true', 'skipping series' )
 class SeriesHelper(Chai):
 
   def setUp(self):
