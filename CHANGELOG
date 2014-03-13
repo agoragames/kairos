@@ -1,3 +1,12 @@
+first-last
+==========
+
+Adds Timeseries.first() and Timeseries.last() for returning the first and
+last time interval of a series.
+
+Adds TEST_ALL environment variable for disabling all functional tests, for
+ease in selecting a subset of tests to run.
+
 0.10.1
 ======
 

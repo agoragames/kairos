@@ -562,6 +562,18 @@ the interval that contained data. If ``transform`` is a list, ``data`` will be a
 dictionary of ``{ transform_func : transformed_data }``. If ``transform`` is a ``dict``,
 ``data`` will be a dictionary of ``{ transform_name : transformed_data }``.
 
+first
+*****
+
+Identical to ``get``, uses the ``first`` timestamp returned from ``properties``
+as the timestamp argument to ``get``.
+
+last
+****
+
+Identical to ``get``, uses the ``last`` timestamp returned from ``properties``
+as the timestamp argument to ``get``.
+
 series
 ******
 
