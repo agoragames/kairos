@@ -1,7 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
-@unittest.skipUnless( os.environ.get('TEST_API',TEST_DEFAULT).lower()=='true', 'skipping api' )
+@unittest.skipUnless( os.environ.get('TEST_API',TEST_ALL).lower()=='true', 'skipping api' )
 class ApiHelper(Chai):
 
   def setUp(self):

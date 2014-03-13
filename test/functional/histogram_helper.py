@@ -3,7 +3,7 @@ from helper_helper import _time
 
 from collections import OrderedDict
 
-@unittest.skipUnless( os.environ.get('TEST_HISTOGRAM',TEST_DEFAULT).lower()=='true', 'skipping histogram' )
+@unittest.skipUnless( os.environ.get('TEST_HISTOGRAM',TEST_ALL).lower()=='true', 'skipping histogram' )
 class HistogramHelper(Chai):
 
   def setUp(self):

@@ -3,7 +3,7 @@ from helper_helper import _time
 
 from collections import OrderedDict
 
-@unittest.skipUnless( os.environ.get('TEST_COUNT',TEST_DEFAULT).lower()=='true', 'skipping counts' )
+@unittest.skipUnless( os.environ.get('TEST_COUNT',TEST_ALL).lower()=='true', 'skipping counts' )
 class CountHelper(Chai):
 
   def setUp(self):

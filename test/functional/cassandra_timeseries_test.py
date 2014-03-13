@@ -8,9 +8,9 @@ import os
 import cql
 
 from . import helpers
-from .helpers import unittest, os, Timeseries, TEST_DEFAULT
+from .helpers import unittest, os, Timeseries, TEST_ALL
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraApiTest(helpers.ApiHelper):
 
   def setUp(self):
@@ -30,35 +30,35 @@ class CassandraApiTest(helpers.ApiHelper):
     #self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     #super(CassandraGregorianTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraSeriesTest(helpers.SeriesHelper):
 
   def setUp(self):
     self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     super(CassandraSeriesTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraHistogramTest(helpers.HistogramHelper):
 
   def setUp(self):
     self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     super(CassandraHistogramTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraCountTest(helpers.CountHelper):
 
   def setUp(self):
     self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     super(CassandraCountTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraGaugeTest(helpers.GaugeHelper):
 
   def setUp(self):
     self.client = cql.connect('localhost', 9160, os.environ.get('CASSANDRA_KEYSPACE','kairos'), cql_version='3.0.0')
     super(CassandraGaugeTest,self).setUp()
 
-@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_DEFAULT).lower()=='true', 'skipping cassandra' )
+@unittest.skipUnless( os.environ.get('TEST_CASSANDRA',TEST_ALL).lower()=='true', 'skipping cassandra' )
 class CassandraSetTest(helpers.SetHelper):
 
   def setUp(self):

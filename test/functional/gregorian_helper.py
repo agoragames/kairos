@@ -1,7 +1,7 @@
 from helper_helper import *
 from helper_helper import _time
 
-@unittest.skipUnless( os.environ.get('TEST_GREGORIAN',TEST_DEFAULT).lower()=='true', 'skipping gregorian' )
+@unittest.skipUnless( os.environ.get('TEST_GREGORIAN',TEST_ALL).lower()=='true', 'skipping gregorian' )
 class GregorianHelper(Chai):
   '''Test that Gregorian data is working right.'''
   def setUp(self):
