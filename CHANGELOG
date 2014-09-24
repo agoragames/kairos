@@ -1,3 +1,8 @@
+0.10.1
+======
+
+Bulk inserts into Redis batch TTL calls
+
 0.10.0
 ======
 
