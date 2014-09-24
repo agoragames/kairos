@@ -109,11 +109,15 @@ class RedisBackend(Timeseries):
       kwargs['pipeline'] = pipe
       own_pipe = True
 
+    ttl_batch = set()
     for timestamp,names in inserts.iteritems():
       for name,values in names.iteritems():
         for value in values:
           # TODO: support config param to flush the pipe every X inserts
-          self._insert( name, value, timestamp, intervals, **kwargs )
+          self._insert( name, value, timestamp, intervals, ttl_batch=ttl_batch, **kwargs )
+
+    for ttl_args in ttl_batch:
+      pipe.expire(*ttl_args)
 
     if own_pipe:
       kwargs['pipeline'].execute()
@@ -130,12 +134,13 @@ class RedisBackend(Timeseries):
     for interval,config in self._intervals.iteritems():
       timestamps = self._normalize_timestamps(timestamp, intervals, config)
       for tstamp in timestamps:
-        self._insert_data(name, value, tstamp, interval, config, pipe)
+        self._insert_data(name, value, tstamp, interval, config, pipe,
+          ttl_batch=kwargs.get('ttl_batch'))
 
     if 'pipeline' not in kwargs:
       pipe.execute()
 
-  def _insert_data(self, name, value, timestamp, interval, config, pipe):
+  def _insert_data(self, name, value, timestamp, interval, config, pipe, ttl_batch=None):
     '''Helper to insert data into redis'''
     # Calculate the TTL and abort if inserting into the past
     expire, ttl = config['expire'], config['ttl'](timestamp)
@@ -155,9 +160,17 @@ class RedisBackend(Timeseries):
       self._type_insert(pipe, r_key, value)
 
     if expire:
-      pipe.expire(i_key, ttl)
+      ttl_args = (i_key, ttl)
+      if ttl_batch is not None:
+        ttl_batch.add(ttl_args)
+      else:
+        pipe.expire(*ttl_args)
       if not config['coarse']:
-        pipe.expire(r_key, ttl)
+        ttl_args = (r_key, ttl)
+        if ttl_batch is not None:
+          ttl_batch.add(ttl_args)
+        else:
+          pipe.expire(*ttl_args)
 
   def delete(self, name):
     '''
