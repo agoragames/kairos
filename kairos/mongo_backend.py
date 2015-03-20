@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2015, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -146,7 +146,7 @@ class MongoBackend(Timeseries):
 
     # now that we've collected a bunch of updates, flush them out
     for spec in updates.values():
-      self._client[ spec['interval'] ].update( 
+      self._client[ spec['interval'] ].update(
         spec['query'], spec['insert'], upsert=True, check_keys=False )
 
   def _insert(self, name, value, timestamp, intervals, **kwargs):
@@ -297,7 +297,7 @@ class MongoSeries(MongoBackend, Series):
     if not existing:
       insert['$push'] = {'value':{'$each':[ insert['$push']['value'] ]}}
       return insert
-      
+
     existing['$push']['value']['$each'].append( insert.pop('$push')['value'] )
     return existing
 
@@ -305,7 +305,7 @@ class MongoSeries(MongoBackend, Series):
     spec['$push'] = {'value':value}
 
 class MongoHistogram(MongoBackend, Histogram):
-  
+
   def _batch(self, insert, existing):
     if not existing:
       return insert
@@ -318,7 +318,7 @@ class MongoHistogram(MongoBackend, Histogram):
     spec['$inc'] = {'value.%s'%(value): 1}
 
 class MongoCount(MongoBackend, Count):
-  
+
   def _batch(self, insert, existing):
     if not existing:
       return insert
