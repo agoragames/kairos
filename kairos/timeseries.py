@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2014, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2015, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
@@ -115,7 +115,7 @@ class RelativeTime(object):
     '''
     Return the ttl given the number of steps, None if steps is not defined
     or we're otherwise unable to calculate one. If relative_time is defined,
-    then return a ttl that is the number of seconds from now that the 
+    then return a ttl that is the number of seconds from now that the
     record should be expired.
     '''
     if steps:
@@ -238,7 +238,7 @@ class GregorianTime(object):
     '''
     Return the ttl given the number of steps, None if steps is not defined
     or we're otherwise unable to calculate one. If relative_time is defined,
-    then return a ttl that is the number of seconds from now that the 
+    then return a ttl that is the number of seconds from now that the
     record should be expired.
     '''
     if steps:
