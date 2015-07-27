@@ -12,6 +12,8 @@ import time
 import re
 import warnings
 import functools
+import collections
+from functools import reduce
 
 if sys.version_info[:2] > (2, 6):
     from collections import OrderedDict
@@ -37,7 +39,7 @@ GREGORIAN_TIMES = set(['daily', 'weekly', 'monthly', 'yearly'])
 
 # Test python3 compatibility
 try:
-  x = long(1)
+  x = int(1)
 except NameError:
   long = int
 
@@ -45,15 +47,15 @@ def _resolve_time(value):
   '''
   Resolve the time in seconds of a configuration value.
   '''
-  if value is None or isinstance(value,(int,long)):
+  if value is None or isinstance(value,int):
     return value
 
   if NUMBER_TIME.match(value):
-    return long(value)
+    return int(value)
 
   simple = SIMPLE_TIME.match(value)
   if SIMPLE_TIME.match(value):
-    multiplier = long( simple.groups()[0] )
+    multiplier = int( simple.groups()[0] )
     constant = SIMPLE_TIMES[ simple.groups()[1] ]
     return multiplier * constant
 
@@ -102,7 +104,7 @@ class RelativeTime(object):
     '''
     start_bucket = self.to_bucket(start)
     end_bucket = self.to_bucket(end)
-    return range(start_bucket, end_bucket+1)
+    return list(range(start_bucket, end_bucket+1))
 
   def normalize(self, timestamp, steps=0):
     '''
@@ -115,7 +117,7 @@ class RelativeTime(object):
     '''
     Return the ttl given the number of steps, None if steps is not defined
     or we're otherwise unable to calculate one. If relative_time is defined,
-    then return a ttl that is the number of seconds from now that the
+    then return a ttl that is the number of seconds from now that the 
     record should be expired.
     '''
     if steps:
@@ -203,7 +205,7 @@ class GregorianTime(object):
       normal = datetime.strptime(bucket, self.FORMATS[self._step])
     if native:
       return normal
-    return long(time.mktime( normal.timetuple() ))
+    return int(time.mktime( normal.timetuple() ))
 
   def buckets(self, start, end):
     '''
@@ -238,7 +240,7 @@ class GregorianTime(object):
     '''
     Return the ttl given the number of steps, None if steps is not defined
     or we're otherwise unable to calculate one. If relative_time is defined,
-    then return a ttl that is the number of seconds from now that the
+    then return a ttl that is the number of seconds from now that the 
     record should be expired.
     '''
     if steps:
@@ -268,22 +270,21 @@ class TimeseriesMeta(type):
   Meta class for URL parsing
   '''
   def __call__(cls, client, **kwargs):
-    if isinstance(client, (str,unicode)):
-      for backend in BACKENDS.values():
+    if isinstance(client, str):
+      for backend in list(BACKENDS.values()):
         handle = backend.url_parse(client, **kwargs.pop('client_config',{}))
         if handle:
           client = handle
           break
-    if isinstance(client, (str,unicode)):
+    if isinstance(client, str):
       raise ImportError("Unsupported or unknown client type for %s", client)
     return type.__call__(cls, client, **kwargs)
 
-class Timeseries(object):
+class Timeseries(metaclass=TimeseriesMeta):
   '''
   Base class of all time series. Also acts as a factory to return the correct
   subclass if "type=" keyword argument supplied.
   '''
-  __metaclass__ = TimeseriesMeta
 
   def __new__(cls, client, **kwargs):
     if cls==Timeseries:
@@ -294,7 +295,7 @@ class Timeseries(object):
         return backend( client, **kwargs )
 
       raise ImportError("Unsupported or unknown client type %s", client_module)
-    return object.__new__(cls, client, **kwargs)
+    return super(Timeseries, cls).__new__(cls)
 
   def __init__(self, client, **kwargs):
     '''
@@ -367,7 +368,7 @@ class Timeseries(object):
     self._intervals = kwargs.get('intervals', {})
 
     # Preprocess the intervals
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       # Copy the interval name into the configuration, needed for redis
       config['interval'] = interval
       step = config['step'] = _resolve_time( config['step'] ) # Required
@@ -431,8 +432,8 @@ class Timeseries(object):
     if None in inserts:
       inserts[ time.time() ] = inserts.pop(None)
     if self._write_func:
-      for timestamp,names in inserts.iteritems():
-        for name,values in names.iteritems():
+      for timestamp,names in list(inserts.items()):
+        for name,values in list(names.items()):
           names[name] = [ self._write_func(v) for v in values ]
     self._batch_insert(inserts, intervals, **kwargs)
 
@@ -476,8 +477,8 @@ class Timeseries(object):
     Support for batch insert. Default implementation is non-optimized and
     is a simple loop over values.
     '''
-    for timestamp,names in inserts.iteritems():
-      for name,values in names.iteritems():
+    for timestamp,names in list(inserts.items()):
+      for name,values in list(names.items()):
         for value in values:
           self._insert( name, value, timestamp, intervals, **kwargs )
 
@@ -541,7 +542,7 @@ class Timeseries(object):
     for i_bucket in i_buckets:
       data = self.get(name, interval,
         timestamp=config['i_calc'].from_bucket(i_bucket), **kwargs)
-      for timestamp,row in data.items():
+      for timestamp,row in list(data.items()):
         yield (timestamp,row)
 
   def get(self, name, interval, **kwargs):
@@ -601,12 +602,12 @@ class Timeseries(object):
     else:
       step_size = config['r_calc'].step_size(timestamp)
     if condense and not config['coarse']:
-      condense = condense if callable(condense) else self._condense
+      condense = condense if isinstance(condense, collections.Callable) else self._condense
       rval = { config['i_calc'].normalize(timestamp) : condense(rval) }
       step_size = config['i_calc'].step_size(timestamp)
 
     if transform:
-      for k,v in rval.items():
+      for k,v in list(rval.items()):
         rval[k] = self._process_transform(v, transform, step_size)
     return rval
 
@@ -692,28 +693,28 @@ class Timeseries(object):
     # going to be another pass at condensing the data.
     if not config['coarse']:
       if condense:
-        condense = condense if callable(condense) else self._condense
-        for key in rval.iterkeys():
+        condense = condense if isinstance(condense, collections.Callable) else self._condense
+        for key in list(rval.keys()):
           data = condense( rval[key] )
           if transform and not collapse:
             data = self._process_transform(data, transform, config['i_calc'].step_size(key))
           rval[key] = data
       elif transform:
-        for interval,resolutions in rval.items():
-          for key in resolutions.iterkeys():
+        for interval,resolutions in list(rval.items()):
+          for key in list(resolutions.keys()):
             resolutions[key] = self._process_transform(resolutions[key], transform, config['r_calc'].step_size(key))
 
     if config['coarse'] or collapse:
       if collapse:
-        collapse = collapse if callable(collapse) else condense if callable(condense) else self._condense
+        collapse = collapse if isinstance(collapse, collections.Callable) else condense if isinstance(condense, collections.Callable) else self._condense
         data = collapse(rval)
         if transform:
-          rval = { rval.keys()[0] : self._process_transform(data, transform, config['i_calc'].step_size(rval.keys()[0], rval.keys()[-1])) }
+          rval = { list(rval.keys())[0] : self._process_transform(data, transform, config['i_calc'].step_size(list(rval.keys())[0], list(rval.keys())[-1])) }
         else:
-          rval = { rval.keys()[0] : data }
+          rval = { list(rval.keys())[0] : data }
 
       elif transform:
-        for key,data in rval.items():
+        for key,data in list(rval.items()):
           rval[key] = self._process_transform(data, transform, config['i_calc'].step_size(key))
 
     return rval
@@ -731,7 +732,7 @@ class Timeseries(object):
     rval = OrderedDict()
     i_keys = set()
     for res in results:
-      i_keys.update( res.keys() )
+      i_keys.update( list(res.keys()) )
     for i_key in sorted(i_keys):
       if coarse:
         rval[i_key] = join( [res.get(i_key) for res in results] )
@@ -739,7 +740,7 @@ class Timeseries(object):
         rval[i_key] = OrderedDict()
         r_keys = set()
         for res in results:
-          r_keys.update( res.get(i_key,{}).keys() )
+          r_keys.update( list(res.get(i_key,{}).keys()) )
         for r_key in sorted(r_keys):
           rval[i_key][r_key] = join( [res.get(i_key,{}).get(r_key) for res in results] )
     return rval
@@ -751,7 +752,7 @@ class Timeseries(object):
     if isinstance(transform, (list,tuple,set)):
       return { t : self._transform(data,t,step_size) for t in transform }
     elif isinstance(transform, dict):
-      return { tn : self._transform(data,tf,step_size) for tn,tf in transform.items() }
+      return { tn : self._transform(data,tf,step_size) for tn,tf in list(transform.items()) }
     return self._transform(data,transform,step_size)
 
   def _transform(self, data, transform, step_size):
@@ -816,13 +817,13 @@ class Series(Timeseries):
       data = sum( data )
     elif transform=='rate':
       data = len( data ) / float(step_size)
-    elif callable(transform):
+    elif isinstance(transform, collections.Callable):
       data = transform(data, step_size)
     return data
 
   def _process_row(self, data):
     if self._read_func:
-      return map(self._read_func, data)
+      return list(map(self._read_func, data))
     return data
 
   def _condense(self, data):
@@ -830,7 +831,7 @@ class Series(Timeseries):
     Condense by adding together all of the lists.
     '''
     if data:
-      return reduce(operator.add, data.values())
+      return reduce(operator.add, list(data.values()))
     return []
 
   def _join(self, rows):
@@ -858,26 +859,26 @@ class Histogram(Timeseries):
     returns the data unaltered.
     '''
     if transform=='mean':
-      total = sum( k*v for k,v in data.items() )
+      total = sum( k*v for k,v in list(data.items()) )
       count = sum( data.values() )
       data = float(total)/float(count) if count>0 else 0
     elif transform=='count':
       data = sum(data.values())
     elif transform=='min':
-      data = min(data.keys() or [0])
+      data = min(list(data.keys()) or [0])
     elif transform=='max':
-      data = max(data.keys() or [0])
+      data = max(list(data.keys()) or [0])
     elif transform=='sum':
-      data = sum( k*v for k,v in data.items() )
+      data = sum( k*v for k,v in list(data.items()) )
     elif transform=='rate':
-      data = { k:v/float(step_size) for k,v in data.items() }
-    elif callable(transform):
+      data = { k:v/float(step_size) for k,v in list(data.items()) }
+    elif isinstance(transform, collections.Callable):
       data = transform(data, step_size)
     return data
 
   def _process_row(self, data):
     rval = {}
-    for value,count in data.items():
+    for value,count in list(data.items()):
       if self._read_func: value = self._read_func(value)
       rval[ value ] = int(count)
     return rval
@@ -887,8 +888,8 @@ class Histogram(Timeseries):
     Condense by adding together all of the lists.
     '''
     rval = {}
-    for resolution,histogram in data.items():
-      for value,count in histogram.items():
+    for resolution,histogram in list(data.items()):
+      for value,count in list(histogram.items()):
         rval[ value ] = count + rval.get(value,0)
     return rval
 
@@ -899,7 +900,7 @@ class Histogram(Timeseries):
     rval = {}
     for row in rows:
       if row:
-        for value,count in row.items():
+        for value,count in list(row.items()):
           rval[ value ] = count + rval.get(value,0)
     return rval
 
@@ -918,7 +919,7 @@ class Count(Timeseries):
     '''
     if transform=='rate':
       data = data / float(step_size)
-    elif callable(transform):
+    elif isinstance(transform, collections.Callable):
       data = transform(data, step_size)
     return data
 
@@ -959,7 +960,7 @@ class Gauge(Timeseries):
     Transform the data. If the transform is not supported by this series,
     returns the data unaltered.
     '''
-    if callable(transform):
+    if isinstance(transform, collections.Callable):
       data = transform(data, step_size)
     return data
 
@@ -973,7 +974,7 @@ class Gauge(Timeseries):
     Condense by returning the last real value of the gauge.
     '''
     if data:
-      data = filter(None,data.values())
+      data = [_f for _f in list(data.values()) if _f]
       if data:
         return data[-1]
     return None
@@ -1014,7 +1015,7 @@ class Set(Timeseries):
       data = sum(data)
     elif transform=='rate':
       data = len(data) / float(step_size)
-    elif callable(transform):
+    elif isinstance(transform, collections.Callable):
       data = transform(data)
     return data
 
@@ -1028,7 +1029,7 @@ class Set(Timeseries):
     Condense by or-ing all of the sets.
     '''
     if data:
-      return reduce(operator.ior, data.values())
+      return reduce(operator.ior, list(data.values()))
     return set()
 
   def _join(self, rows):
