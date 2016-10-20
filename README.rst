@@ -162,7 +162,7 @@ An example timeseries stored in Redis: ::
   import redis
 
   client = redis.Redis('localhost', 6379)
-  t = Timeseries(client, type='histogram', read_func=int, intervals={
+  t = Timeseries(client, type='histogram', read_func=float, intervals={
     'minute':{
       'step':60,            # 60 seconds
       'steps':120,          # last 2 hours
