@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2012-2015, Agora Games, LLC All rights reserved.
+Copyright (c) 2012-2017, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/kairos/blob/master/LICENSE.txt
 '''
