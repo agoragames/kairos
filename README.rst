@@ -21,8 +21,8 @@ the scale and flexibility of other data stores is required. It works with
 `gevent <http://www.gevent.org/>`_ and is the library on which
 `torus <https://github.com/agoragames/torus>`_ is built.
 
-Recommended for python 2.7 and later, it can work with previous versions if you
-install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
+Recommended for Python 2.7 but not yet Python 3, it may work with previous
+versions if you install `OrderedDict <https://pypi.python.org/pypi/ordereddict>`_.
 
 Kairos provides a consistent API for a variety of timeseries types and the
 storage engines they're implemented in. Each timestamp is resolved to a 
