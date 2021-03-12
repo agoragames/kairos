@@ -10,7 +10,7 @@ import operator
 import sys
 import time
 import re
-from urlparse import *
+from urllib.parse import *
 from redis import Redis
 
 class RedisBackend(Timeseries):
@@ -61,7 +61,7 @@ class RedisBackend(Timeseries):
     return i_bucket, r_bucket, i_key, r_key
 
   def list(self):
-    keys = self._client.keys()
+    keys = list(self._client.keys())
     rval = set()
     for key in keys:
       key = key[len(self._prefix):]
@@ -85,7 +85,7 @@ class RedisBackend(Timeseries):
       else:
         rval[key[0]]['last'] = int(key[1])
 
-    for interval, properties in rval.items():
+    for interval, properties in list(rval.items()):
       # It's possible that there is data stored for which an interval
       # is not defined.
       if interval in self._intervals:
@@ -110,8 +110,8 @@ class RedisBackend(Timeseries):
       own_pipe = True
 
     ttl_batch = set()
-    for timestamp,names in inserts.iteritems():
-      for name,values in names.iteritems():
+    for timestamp,names in inserts.items():
+      for name,values in names.items():
         for value in values:
           # TODO: support config param to flush the pipe every X inserts
           self._insert( name, value, timestamp, intervals, ttl_batch=ttl_batch, **kwargs )
@@ -131,7 +131,7 @@ class RedisBackend(Timeseries):
     else:
       pipe = self._client.pipeline(transaction=False)
 
-    for interval,config in self._intervals.iteritems():
+    for interval,config in self._intervals.items():
       timestamps = self._normalize_timestamps(timestamp, intervals, config)
       for tstamp in timestamps:
         self._insert_data(name, value, tstamp, interval, config, pipe,

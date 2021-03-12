@@ -14,24 +14,24 @@ import time
 from datetime import date, datetime
 from datetime import time as time_type
 from decimal import Decimal
-from urlparse import *
+from urllib.parse import *
 
 # Test python3 compatibility
 try:
-  x = long(1)
+  x = int(1)
 except NameError:
   long = int
 try:
-  x = unicode('foo')
+  x = str('foo')
 except NameError:
-  unicode = str
+  str = str
 
 TYPE_MAP = {
   str         : String,
   'str'       : String,
   'string'    : String,
 
-  unicode     : Unicode,  # works for py3 too
+  str     : Unicode,  # works for py3 too
   'unicode'   : Unicode,
 
   float       : Float,
@@ -41,7 +41,7 @@ TYPE_MAP = {
   'int'       : Integer,
   'integer'   : Integer,
 
-  long        : BigInteger, # works for py3 too
+  int        : BigInteger, # works for py3 too
   'long'      : BigInteger,
   'int64'     : BigInteger,
 
@@ -135,7 +135,7 @@ class SqlBackend(Timeseries):
     connection = self._client.connect()
     rval = {}
 
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       rval.setdefault(interval, {})
 
       stmt = select([self._table.c.i_time]).where(
@@ -162,7 +162,7 @@ class SqlBackend(Timeseries):
     '''
     Expire all the data.
     '''
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       if config['expire']:
         # Because we're storing the bucket time, expiry has the same
         # "skew" as whatever the buckets are.
@@ -181,7 +181,7 @@ class SqlBackend(Timeseries):
     '''
     Insert the new value.
     '''
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       timestamps = self._normalize_timestamps(timestamp, intervals, config)
       for tstamp in timestamps:
         self._insert_data(name, value, tstamp, interval, config, **kwargs)
@@ -202,11 +202,11 @@ class SqlBackend(Timeseries):
 
     if config['coarse']:
       if data:
-        rval[ config['i_calc'].from_bucket(i_bucket) ] = process_row(data.values()[0][None])
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = process_row(list(data.values())[0][None])
       else:
         rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
     else:
-      for r_bucket,row_data in data.values()[0].items():
+      for r_bucket,row_data in list(data.values())[0].items():
         rval[ config['r_calc'].from_bucket(r_bucket) ] = process_row(row_data)
 
     return rval
@@ -235,10 +235,10 @@ class SqlBackend(Timeseries):
           rval[ i_key ] = self._type_no_value()
     else:
       if data:
-        for i_bucket, i_data in data.items():
+        for i_bucket, i_data in list(data.items()):
           i_key = config['i_calc'].from_bucket(i_bucket)
           rval[i_key] = OrderedDict()
-          for r_bucket, r_data in i_data.items():
+          for r_bucket, r_data in list(i_data.items()):
             r_key = config['r_calc'].from_bucket(r_bucket)
             if r_data:
               rval[i_key][r_key] = process_row(r_data)

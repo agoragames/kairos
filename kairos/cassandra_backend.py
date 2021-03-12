@@ -12,26 +12,26 @@ import time
 from datetime import date, datetime
 from datetime import time as time_type
 from decimal import Decimal
-from Queue import Queue, Empty, Full
+from queue import Queue, Empty, Full
 import re
-from urlparse import *
+from urllib.parse import *
 
 # Test python3 compatibility
 try:
-  x = long(1)
+  x = int(1)
 except NameError:
   long = int
 try:
-  x = unicode('foo')
+  x = str('foo')
 except NameError:
-  unicode = str
+  str = str
 
 TYPE_MAP = {
   str         : 'ascii',
   'str'       : 'ascii',
   'string'    : 'ascii',
 
-  unicode     : 'text',  # works for py3 too
+  str     : 'text',  # works for py3 too
   'unicode'   : 'text',
 
   float       : 'float',
@@ -43,7 +43,7 @@ TYPE_MAP = {
   'int'       : 'int',
   'integer'   : 'int',
 
-  long        : 'varint', # works for py3 too
+  int        : 'varint', # works for py3 too
   'long'      : 'varint',
   'int64'     : 'bigint',
 
@@ -179,7 +179,7 @@ class CassandraBackend(Timeseries):
     if self._value_type in QUOTE_TYPES and not QUOTE_MATCH.match(value):
       value = "'%s'"%(value)
 
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       timestamps = self._normalize_timestamps(timestamp, intervals, config)
       for tstamp in timestamps:
         self._insert_data(name, value, tstamp, interval, config, **kwargs)
@@ -212,11 +212,11 @@ class CassandraBackend(Timeseries):
 
     if config['coarse']:
       if data:
-        rval[ config['i_calc'].from_bucket(i_bucket) ] = process_row(data.values()[0][None])
+        rval[ config['i_calc'].from_bucket(i_bucket) ] = process_row(list(data.values())[0][None])
       else:
         rval[ config['i_calc'].from_bucket(i_bucket) ] = self._type_no_value()
     else:
-      for r_bucket,row_data in data.values()[0].items():
+      for r_bucket,row_data in list(data.values())[0].items():
         rval[ config['r_calc'].from_bucket(r_bucket) ] = process_row(row_data)
 
     return rval
@@ -246,10 +246,10 @@ class CassandraBackend(Timeseries):
           rval[ i_key ] = self._type_no_value()
     else:
       if data:
-        for i_bucket, i_data in data.items():
+        for i_bucket, i_data in list(data.items()):
           i_key = config['i_calc'].from_bucket(i_bucket)
           rval[i_key] = OrderedDict()
-          for r_bucket, r_data in i_data.items():
+          for r_bucket, r_data in list(i_data.items()):
             r_key = config['r_calc'].from_bucket(r_bucket)
             if r_data:
               rval[i_key][r_key] = process_row(r_data)
@@ -293,7 +293,7 @@ class CassandraBackend(Timeseries):
     rval = {}
 
     try:
-      for interval,config in self._intervals.items():
+      for interval,config in list(self._intervals.items()):
         rval.setdefault(interval, {})
 
         cursor.execute('''SELECT i_time

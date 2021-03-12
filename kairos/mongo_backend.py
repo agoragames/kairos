@@ -13,7 +13,7 @@ import re
 import pymongo
 from pymongo import ASCENDING, DESCENDING
 from datetime import datetime
-from urlparse import *
+from urllib.parse import *
 
 class MongoBackend(Timeseries):
   '''
@@ -43,11 +43,11 @@ class MongoBackend(Timeseries):
     elif not isinstance(client, pymongo.database.Database):
       raise TypeError('Mongo handle must be MongoClient or database instance')
 
-    self._escape_character = kwargs.get('escape_character', u"\U0000FFFF")
+    self._escape_character = kwargs.get('escape_character', "\U0000FFFF")
     super(MongoBackend,self).__init__(client, **kwargs)
 
     # Define the indices for lookups and TTLs
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       # TODO: the interval+(resolution+)name combination should be unique,
       # but should the index be defined as such? Consider performance vs.
       # correctness tradeoff. Also will need to determine if we need to
@@ -92,23 +92,23 @@ class MongoBackend(Timeseries):
     Recursively unescape values. Though slower, this doesn't require the user to
     know anything about the escaping when writing their own custom fetch functions.
     '''
-    if isinstance(value, (str,unicode)):
+    if isinstance(value, str):
       return value.replace(self._escape_character, '.')
     elif isinstance(value, dict):
-      return { self._unescape(k) : self._unescape(v) for k,v in value.items() }
+      return { self._unescape(k) : self._unescape(v) for k,v in list(value.items()) }
     elif isinstance(value, list):
       return [ self._unescape(v) for v in value ]
     return value
 
   def list(self):
     rval = set()
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       rval.update( self._client.command({'distinct':interval, 'key':'name'})['values'] )
     return list(rval)
 
   def properties(self, name):
     rval = {}
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       rval.setdefault(interval, {})
       query = {'name':name}
       res = self._client[interval].find_one(query, sort=[('interval',ASCENDING)])
@@ -130,10 +130,10 @@ class MongoBackend(Timeseries):
     '''
     updates = {}
     # TODO support flush interval
-    for interval,config in self._intervals.items():
-      for timestamp,names in inserts.iteritems():
+    for interval,config in list(self._intervals.items()):
+      for timestamp,names in inserts.items():
         timestamps = self._normalize_timestamps(timestamp, intervals, config)
-        for name,values in names.iteritems():
+        for name,values in names.items():
           for value in values:
             for tstamp in timestamps:
               query,insert = self._insert_data(
@@ -145,8 +145,8 @@ class MongoBackend(Timeseries):
               updates[batch_key]['insert'] = new_insert
 
     # now that we've collected a bunch of updates, flush them out
-    for spec in updates.values():
-      self._client[ spec['interval'] ].update(
+    for spec in list(updates.values()):
+      self._client[ spec['interval'] ].update( 
         spec['query'], spec['insert'], upsert=True, check_keys=False )
 
   def _insert(self, name, value, timestamp, intervals, **kwargs):
@@ -154,7 +154,7 @@ class MongoBackend(Timeseries):
     Insert the new value.
     '''
     # TODO: confirm that this is in fact using the indices correctly.
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       timestamps = self._normalize_timestamps(timestamp, intervals, config)
       for tstamp in timestamps:
         self._insert_data(name, value, tstamp, interval, config, **kwargs)
@@ -190,7 +190,7 @@ class MongoBackend(Timeseries):
 
     # need to hide the period of any values. best option seems to be to pick
     # a character that "no one" uses.
-    if isinstance(value, (str,unicode)):
+    if isinstance(value, str):
       value = value.replace('.', self._escape_character)
     elif isinstance(value, float):
       value = str(value).replace('.', self._escape_character)
@@ -286,7 +286,7 @@ class MongoBackend(Timeseries):
     # TODO: confirm that this does not use the combo index and determine
     # performance implications.
     num_deleted = 0
-    for interval,config in self._intervals.items():
+    for interval,config in list(self._intervals.items()):
       # TODO: use write preference settings if we have them
       num_deleted += self._client[interval].remove( {'name':name} )['n']
     return num_deleted
@@ -297,7 +297,7 @@ class MongoSeries(MongoBackend, Series):
     if not existing:
       insert['$push'] = {'value':{'$each':[ insert['$push']['value'] ]}}
       return insert
-
+      
     existing['$push']['value']['$each'].append( insert.pop('$push')['value'] )
     return existing
 
@@ -305,12 +305,12 @@ class MongoSeries(MongoBackend, Series):
     spec['$push'] = {'value':value}
 
 class MongoHistogram(MongoBackend, Histogram):
-
+  
   def _batch(self, insert, existing):
     if not existing:
       return insert
 
-    for value,incr in insert['$inc'].iteritems():
+    for value,incr in insert['$inc'].items():
       existing['$inc'][value] = existing['$inc'].get(value,0)+incr
     return existing
 
@@ -318,7 +318,7 @@ class MongoHistogram(MongoBackend, Histogram):
     spec['$inc'] = {'value.%s'%(value): 1}
 
 class MongoCount(MongoBackend, Count):
-
+  
   def _batch(self, insert, existing):
     if not existing:
       return insert
